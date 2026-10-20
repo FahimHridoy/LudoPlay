@@ -24,7 +24,7 @@ let liveGreatPlayerIndex = -1;
 let liveGreatPlayerUntil = 0;
 let liveGreatPlayerTimer = null;
 
-// TURN TIMER VARIABLES
+// TURN TIMER VARIABLES (DISABLED FOR BOTH ONLINE & OFFLINE)
 let turnTimerInterval = null;
 let turnTimeRemaining = 15000;
 const MAX_TURN_TIME = 15000;
@@ -215,7 +215,6 @@ function requestGameFullscreen(element) {
     } catch (_) {}
 }
 
-const LUDO_AI_HARD_TURN_CHANCE = 0.35;
 const LUDO_COLORS_BY_COUNT = {
     2: ['blue','green'],
     3: ['blue','red','green'],
@@ -241,50 +240,16 @@ const LUDO_RADIAL_HOME_LANES = Array.from({ length: 6 }, (_, playerIndex) => {
 });
 const LUDO_RADIAL_SAFE_CELLS = new Set(Array.from({ length: 6 }, (_, index) => LUDO_RADIAL_TRACK_PATH[index * 10].join(',')));
 
-// AUTO TURN TIMER LOGIC
+// UNLIMITED TIME: TURN TIMER COMPLETELY DISABLED
 function resetAndStartTurnTimer() {
     clearInterval(turnTimerInterval);
-    turnTimeRemaining = MAX_TURN_TIME;
-
+    turnTimerInterval = null;
     document.querySelectorAll('.lk-timer-ring').forEach(ring => {
-        ring.style.setProperty('--timer-deg', '360deg');
+        ring.style.display = 'none';
     });
     document.querySelectorAll('.lk-player-badge').forEach(badge => {
         badge.classList.remove('warning-time');
     });
-
-    if (ludoMatchWinner !== null || snakeMatchWinner !== null) return;
-    
-    const currentPlayer = activePlayersList[currentTurnIndex];
-    if (!currentPlayer || currentPlayer.isAI || (selectedSubMode.startsWith('online') && currentPlayer.playerId !== getCurrentProfileId())) return; 
-
-    turnTimerInterval = setInterval(() => {
-        if (isTokenAnimating || isDiceRolling || document.visibilityState === 'hidden') return;
-
-        turnTimeRemaining -= 100;
-        const percentage = Math.max(0, (turnTimeRemaining / MAX_TURN_TIME) * 360);
-        const ring = document.getElementById(`timer_ring_${currentTurnIndex}`);
-        const badge = document.getElementById(`badge_${currentTurnIndex}`);
-
-        if (ring) ring.style.setProperty('--timer-deg', `${percentage}deg`);
-
-        if (turnTimeRemaining <= 5000 && badge && !badge.classList.contains('warning-time')) {
-            badge.classList.add('warning-time');
-        }
-
-        if (turnTimeRemaining <= 0) {
-            clearInterval(turnTimerInterval);
-            if (badge) badge.classList.remove('warning-time');
-            
-            showGameToast(`⏳ Time's up for ${currentPlayer.name}! Auto-playing...`);
-            
-            if (activeGameType === 'ludo' && ludoPendingMove && ludoPendingMove.playerIndex === currentTurnIndex) {
-                chooseLudoPiece(currentTurnIndex, ludoPendingMove.legalPieceIndexes[0]);
-            } else {
-                rollPlayerDice(currentTurnIndex);
-            }
-        }
-    }, 100);
 }
 
 function createPipDiceHTML(val) {
@@ -329,7 +294,7 @@ function launchGameMatch() {
     ludoAnimationEpoch++; isTokenAnimating = false; ludoQuickMatch = selectedSubMode === 'pass_quick' || selectedSubMode === 'online_quick';
     ludoFirstKillOccurred = false; ludoFinishCelebration = null; ludoMatchIsOffline = !selectedSubMode.startsWith('online');
     ludoMatchStartedAt = Date.now(); ludoMatchFinishedAt = null; currentMatchResultRecorded = false;
-    clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearTimeout(ludoAiTimer); clearInterval(turnTimerInterval);
+    clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearTimeout(ludoAiTimer); clearTimeout(turnTimerInterval);
 
     activePlayersList.push({
         name: currentUser.name || 'You', playerId: getCurrentProfileId(), avatar: currentUser.avatar === 'female' ? '👧' : '👦',
@@ -354,6 +319,14 @@ function launchGameMatch() {
         });
     }
 
+    // Assign Team Up partnership IDs if Pass & Play Team Up is active
+    if (ludoMatchIsOffline && passPlaySubType === 'teamup' && activePlayersList.length === 4) {
+        activePlayersList.forEach((p, idx) => {
+            p.teamId = idx % 2; // Team 0 (Player 0 & 2) vs Team 1 (Player 1 & 3)
+        });
+        showGameToast('👥 Team Up Mode Active (1v1 / 2v2 Partnership)!');
+    }
+
     currentTurnIndex = 0;
     const arena = document.getElementById('gameArenaScreen');
     arena.classList.remove('snake-theme');
@@ -364,7 +337,7 @@ function launchGameMatch() {
 }
 
 function quitGameMatch() {
-    autoSaveActiveMatch(); clearTimeout(ludoAiTimer); clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearInterval(turnTimerInterval);
+    autoSaveActiveMatch(); clearTimeout(ludoAiTimer); clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearTimeout(turnTimerInterval);
     ludoAnimationEpoch++; isTokenAnimating = false; ludoPendingMove = null; document.getElementById('gameArenaScreen').style.display = 'none';
     endOnlineMatchSession(); updateAdminMatchBadgeControl(false); snakeVisualMotion = null;
     const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
@@ -394,7 +367,7 @@ function restoreLudoMatchFromSave(save) {
         ludoPendingMove = null; ludoMatchWinner = null; snakeMatchWinner = null; liveGreatPlayerIndex = -1; liveGreatPlayerUntil = 0; clearTimeout(liveGreatPlayerTimer);
         ludoQuickMatch = Boolean(save.quickMatch); ludoFirstKillOccurred = Boolean(save.firstKillOccurred); ludoMatchIsOffline = true;
         ludoMatchStartedAt = Date.now() - Math.max(0, Number(save.elapsedMs) || 0); ludoMatchFinishedAt = null; currentMatchResultRecorded = false;
-        isDiceRolling = false; isTokenAnimating = false; ludoAnimationEpoch++; clearTimeout(ludoAiTimer); clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearInterval(turnTimerInterval);
+        isDiceRolling = false; isTokenAnimating = false; ludoAnimationEpoch++; clearTimeout(ludoAiTimer); clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearTimeout(turnTimerInterval);
         activeMatchSaveId = save.id; const arena = document.getElementById('gameArenaScreen'); arena.classList.remove('snake-theme'); arena.classList.add('ludo-mode'); arena.style.display = 'flex';
         beginOnlineMatchSession(); renderFullStage(); updateAdminMatchBadgeControl(true); refreshAdminMatchBadges(); requestGameFullscreen(arena); autoSaveActiveMatch(); resetAndStartTurnTimer();
         return true;
@@ -428,7 +401,6 @@ function getLiveGreatStarMarkup(playerIndex) {
 function updateLiveGreatPlayer() {
     if (!['ludo', 'snake'].includes(activeGameType) || !activePlayersList.length || ludoMatchWinner !== null || snakeMatchWinner !== null) return;
     
-    // Interval Threshold: Prevent KING badge for just rolling a 6 at the start.
     const hasRealProgress = activeGameType === 'snake'
         ? activePlayersList.some(player => player.pos > 15)
         : activePlayersList.some(player => (player.kills || 0) > 0 || player.tokens.reduce((sum, token) => sum + Math.max(0, token.progress), 0) > 10);
@@ -551,9 +523,18 @@ function buildPlayerBadgeHTML(pIdx, isRightSide = false, extraClass = '') {
     `;
 }
 
+function isSixActiveForPlayer(playerIdx) {
+    return Boolean(ludoPendingMove && ludoPendingMove.playerIndex === playerIdx && ludoPendingMove.roll === 6);
+}
+
 function render4PlayerLudoStage(stage) {
     const colorPlayers = Object.fromEntries(activePlayersList.map((player, index) => [player.color, index]));
     const blIdx = colorPlayers.blue ?? -1; const tlIdx = colorPlayers.red ?? -1; const trIdx = colorPlayers.green ?? -1; const brIdx = colorPlayers.yellow ?? -1;
+
+    const redSix = isSixActiveForPlayer(tlIdx);
+    const greenSix = isSixActiveForPlayer(trIdx);
+    const yellowSix = isSixActiveForPlayer(brIdx);
+    const blueSix = isSixActiveForPlayer(blIdx);
 
     let cells = '';
     for (let row = 0; row < 15; row++) for (let col = 0; col < 15; col++) {
@@ -567,10 +548,10 @@ function render4PlayerLudoStage(stage) {
         if (row === 7 && col === 14) cls += ' arrow-right';
         if (row === 14 && col === 7) cls += ' arrow-bottom';
         if (row === 7 && col === 0) cls += ' arrow-left';
-        if (row === 6 && col === 1) cls = 'board-cell start-red';
-        if (row === 1 && col === 8) cls = 'board-cell start-green';
-        if (row === 8 && col === 13) cls = 'board-cell start-yellow';
-        if (row === 13 && col === 6) cls = 'board-cell start-blue';
+        if (row === 6 && col === 1) cls = 'board-cell start-red' + (redSix ? ' dice-six-highlight' : '');
+        if (row === 1 && col === 8) cls = 'board-cell start-green' + (greenSix ? ' dice-six-highlight' : '');
+        if (row === 8 && col === 13) cls = 'board-cell start-yellow' + (yellowSix ? ' dice-six-highlight' : '');
+        if (row === 13 && col === 6) cls = 'board-cell start-blue' + (blueSix ? ' dice-six-highlight' : '');
         if (LUDO_STAR_CELLS.has(`${row},${col}`)) cls += ' safe';
         cells += `<div class="${cls}" data-cell="${row},${col}" style="grid-row:${row + 1};grid-column:${col + 1}"><div class="piece-stack" data-cell-stack="${row},${col}"></div></div>`;
     }
@@ -582,11 +563,11 @@ function render4PlayerLudoStage(stage) {
         <div class="lk-board-box">
             <div class="ludo-board-grid">
                 ${cells}
-                <div class="board-home-base base-red"><div class="home-inner-box">${makePinSpot('spot-red',tlIdx,0)}${makePinSpot('spot-red',tlIdx,1)}${makePinSpot('spot-red',tlIdx,2)}${makePinSpot('spot-red',tlIdx,3)}</div></div>
-                <div class="board-home-base base-green"><div class="home-inner-box">${makePinSpot('spot-green',trIdx,0)}${makePinSpot('spot-green',trIdx,1)}${makePinSpot('spot-green',trIdx,2)}${makePinSpot('spot-green',trIdx,3)}</div></div>
+                <div class="board-home-base base-red ${redSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-red',tlIdx,0)}${makePinSpot('spot-red',tlIdx,1)}${makePinSpot('spot-red',tlIdx,2)}${makePinSpot('spot-red',tlIdx,3)}</div></div>
+                <div class="board-home-base base-green ${greenSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-green',trIdx,0)}${makePinSpot('spot-green',trIdx,1)}${makePinSpot('spot-green',trIdx,2)}${makePinSpot('spot-green',trIdx,3)}</div></div>
                 <div class="center-home"><div class="piece-stack finish-stack" data-cell-stack="center"></div></div>
-                <div class="board-home-base base-blue"><div class="home-inner-box">${makePinSpot('spot-blue',blIdx,0)}${makePinSpot('spot-blue',blIdx,1)}${makePinSpot('spot-blue',blIdx,2)}${makePinSpot('spot-blue',blIdx,3)}</div></div>
-                <div class="board-home-base base-yellow"><div class="home-inner-box">${makePinSpot('spot-yellow',brIdx,0)}${makePinSpot('spot-yellow',brIdx,1)}${makePinSpot('spot-yellow',brIdx,2)}${makePinSpot('spot-yellow',brIdx,3)}</div></div>
+                <div class="board-home-base base-blue ${blueSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-blue',blIdx,0)}${makePinSpot('spot-blue',blIdx,1)}${makePinSpot('spot-blue',blIdx,2)}${makePinSpot('spot-blue',blIdx,3)}</div></div>
+                <div class="board-home-base base-yellow ${yellowSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-yellow',brIdx,0)}${makePinSpot('spot-yellow',brIdx,1)}${makePinSpot('spot-yellow',brIdx,2)}${makePinSpot('spot-yellow',brIdx,3)}</div></div>
             </div>
         </div>
         <div class="lk-hud-row">${buildPlayerBadgeHTML(blIdx, false)} ${buildPlayerBadgeHTML(brIdx, true)}</div>
@@ -597,11 +578,13 @@ function render6PlayerRadialLudoStage(stage) {
     let svgParts = '';
     for (let i = 0; i < 6; i++) {
         const rot = i * 60; const c = LUDO_RADIAL_COLOR_HEX[LUDO_RADIAL_COLOR_ORDER[i]]; const pName = activePlayersList[i] ? activePlayersList[i].name : '';
+        const isSix = isSixActiveForPlayer(i);
+        const neonFilter = isSix ? 'filter="url(#safeStarGlow)" stroke="#00f2fe" stroke-width="3.5"' : 'stroke="#1e293b" stroke-width="2"';
         svgParts += `<g transform="rotate(${rot} 250 250)">
                 <rect x="205" y="6" width="90" height="18" rx="5" fill="${c}" stroke="#111" stroke-width="1.5"/>
                 <text x="250" y="19" fill="#fff" font-size="11" font-weight="800" text-anchor="middle">${pName}</text>
-                <polygon points="250,195 182,28 318,28" fill="${c}" stroke="#1e293b" stroke-width="2"/>
-                <polygon points="250,175 198,42 302,42" fill="#ffffff" stroke="#1e293b" stroke-width="1.5"/>
+                <polygon points="250,195 182,28 318,28" fill="${c}" ${neonFilter}/>
+                <polygon points="250,175 198,42 302,42" fill="#ffffff" stroke="${isSix ? '#00f2fe' : '#1e293b'}" stroke-width="${isSix ? '2.5' : '1.5'}"/>
                 <g transform="rotate(30 250 250)">
                     <rect x="226" y="28" width="48" height="165" fill="#ffffff" stroke="#1e293b" stroke-width="1.5"/>
                     <rect x="242" y="55" width="16" height="138" fill="${c}" stroke="#475569" stroke-width="0.8"/>
@@ -650,7 +633,7 @@ function render6PlayerRadialLudoStage(stage) {
                 </svg>
                 <div class="radial-center-dice" id="radialCenterDice" onclick="rollPlayerDice(${currentTurnIndex})" title="Tap to Roll">${createPipDiceHTML(activeRoll)}</div>
             </div>
-        </div>`;
+        `;
 }
 
 function rotateRadialPoint(point, rotationDegrees) {
@@ -661,8 +644,9 @@ function rotateRadialPoint(point, rotationDegrees) {
 function createRadialTokenSvg(playerIndex, pieceIndex, x, y, legal, scale = 1, celebrate = false) {
     const player = activePlayersList[playerIndex]; const color = LUDO_RADIAL_COLOR_HEX[player.color] || '#111827';
     const handler = legal ? `onclick="chooseLudoPiece(${playerIndex},${pieceIndex})"` : '';
-    const filter = legal ? 'drop-shadow(0 0 3px #facc15) drop-shadow(0 2px 2px rgba(15,23,42,0.55))' : 'drop-shadow(0 2px 2px rgba(15,23,42,0.55))';
-    return `<g class="${celebrate ? 'finish-arrival-svg' : ''}" transform="translate(${x} ${y}) scale(${scale})" ${handler} role="${legal ? 'button' : 'img'}" aria-label="${player.name} token ${pieceIndex + 1}" style="cursor:${legal ? 'pointer' : 'default'};filter:${filter}"><path d="M0 13 C-2 8 -10 -1 -10 -8 A10 10 0 1 1 10 -8 C10 -1 2 8 0 13 Z" fill="${color}" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-8" r="4" fill="#fff" fill-opacity=".95"/></g>`;
+    const finalScale = legal ? scale * 1.28 : scale;
+    const filter = legal ? 'drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 8px #facc15) drop-shadow(0 3px 4px rgba(15,23,42,0.75))' : 'drop-shadow(0 2px 2px rgba(15,23,42,0.55))';
+    return `<g class="${celebrate ? 'finish-arrival-svg' : ''}" transform="translate(${x} ${y}) scale(${finalScale})" ${handler} role="${legal ? 'button' : 'img'}" aria-label="${player.name} token ${pieceIndex + 1}" style="cursor:${legal ? 'pointer' : 'default'};filter:${filter}"><path d="M0 13 C-2 8 -10 -1 -10 -8 A10 10 0 1 1 10 -8 C10 -1 2 8 0 13 Z" fill="${color}" stroke="#fff" stroke-width="${legal ? '2.8' : '2'}"/><circle cx="0" cy="-8" r="4" fill="#fff" fill-opacity=".95"/></g>`;
 }
 
 function renderRadialLudoPieces() {
@@ -675,7 +659,7 @@ function renderRadialLudoPieces() {
             if (piece.progress < 0) {
                 const spot = rotateRadialPoint(homeSlots[pieceIndex], player.radialIndex * 60);
                 const legal = isLegalLudoPiece(playerIndex, pieceIndex);
-                markup += `<circle cx="${spot[0]}" cy="${spot[1]}" r="10" fill="${LUDO_RADIAL_COLOR_HEX[player.color]}" fill-opacity=".3" stroke="#fff" stroke-width="2"/>`;
+                markup += `<circle cx="${spot[0]}" cy="${spot[1]}" r="10" fill="${LUDO_RADIAL_COLOR_HEX[player.color]}" fill-opacity=".3" stroke="${legal ? '#facc15' : '#fff'}" stroke-width="${legal ? '3' : '2'}"/>`;
                 markup += createRadialTokenSvg(playerIndex, pieceIndex, spot[0], spot[1] - 6, legal, 0.86);
                 return;
             }
@@ -797,39 +781,56 @@ function scheduleSnakeAIAction() {
     }, 750);
 }
 
-function ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) {
-    const player = activePlayersList[playerIndex]; const piece = player.tokens[pieceIndex];
-    const oldProgress = piece.progress; const nextProgress = oldProgress < 0 ? 0 : oldProgress + roll;
-    const nextCell = ludoPieceCell(player, { progress: nextProgress }); const isHard = difficulty === 'hard';
-    let score = roll * (isHard ? 1.7 : 1.35);
+// 3. ADVANCED HARD AI LOGIC (HIGH STRATEGY & ACCURACY)
+const LUDO_AI_HARD_TURN_CHANCE = 0.85;
 
-    if (oldProgress < 0) score += isHard ? 16 : 12;
-    if (nextProgress === player.finishProgress) score += isHard ? 85 : 68;
-    if (nextProgress >= player.trackLength && nextProgress < player.finishProgress) { score += (isHard ? 13 : 9) + (nextProgress - player.trackLength) * 2.5; }
+function ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) {
+    const player = activePlayersList[playerIndex]; 
+    const piece = player.tokens[pieceIndex];
+    const oldProgress = piece.progress; 
+    const nextProgress = oldProgress < 0 ? 0 : oldProgress + roll;
+    const nextCell = ludoPieceCell(player, { progress: nextProgress }); 
+    const isHard = difficulty === 'hard';
+    let score = roll * (isHard ? 2.2 : 1.5);
+
+    if (oldProgress < 0) score += isHard ? 35 : 20;
+    if (nextProgress === player.finishProgress) score += isHard ? 140 : 90;
+    if (nextProgress >= player.trackLength && nextProgress < player.finishProgress) { 
+        score += (isHard ? 22 : 14) + (nextProgress - player.trackLength) * 4; 
+    }
 
     if (!nextCell || nextProgress >= player.trackLength) return score;
-    const cellKey = `${nextCell[0]},${nextCell[1]}`; const safe = player.safeCells.has(cellKey);
-    if (safe) score += isHard ? 16 : 11;
+
+    const cellKey = `${nextCell[0]},${nextCell[1]}`; 
+    const safe = player.safeCells.has(cellKey);
+
+    if (safe) score += isHard ? 28 : 15;
 
     const captures = getLudoCapturableTokens(playerIndex, nextCell, { pieceIndex, progress: nextProgress }).length;
-    if (!safe) score += captures * (isHard ? 42 : 31);
+    if (!safe) score += captures * (isHard ? 85 : 50);
 
     if (!safe) {
         let threatened = false;
         for (let opponentIndex = 0; opponentIndex < activePlayersList.length && !threatened; opponentIndex++) {
             if (opponentIndex === playerIndex) continue;
+            if (selectedSubMode.includes('teamup') && getLudoTeamKey(opponentIndex) === getLudoTeamKey(playerIndex)) continue;
+
             const opponent = activePlayersList[opponentIndex];
             for (const enemy of opponent.tokens) {
                 if (enemy.progress < 0 || enemy.progress >= opponent.trackLength) continue;
                 for (let enemyRoll = 1; enemyRoll <= 6; enemyRoll++) {
-                    const enemyNext = enemy.progress + enemyRoll; if (enemyNext >= opponent.trackLength) continue;
+                    const enemyNext = enemy.progress + enemyRoll; 
+                    if (enemyNext >= opponent.trackLength) continue;
                     const enemyNextCell = ludoPieceCell(opponent, { progress: enemyNext });
-                    if (enemyNextCell && enemyNextCell[0] === nextCell[0] && enemyNextCell[1] === nextCell[1]) { threatened = true; break; }
+                    if (enemyNextCell && enemyNextCell[0] === nextCell[0] && enemyNextCell[1] === nextCell[1]) { 
+                        threatened = true; 
+                        break; 
+                    }
                 }
                 if (threatened) break;
             }
         }
-        if (threatened) score -= isHard ? 38 : 18;
+        if (threatened) score -= isHard ? 65 : 30;
     }
     return score;
 }
@@ -837,15 +838,15 @@ function ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) {
 function chooseLudoAIMove(playerIndex, legalPieceIndexes, roll) {
     if (!legalPieceIndexes.length) return;
     const difficulty = Math.random() < LUDO_AI_HARD_TURN_CHANCE ? 'hard' : 'medium';
-    const rankedMoves = legalPieceIndexes.map(pieceIndex => ({ pieceIndex, score: ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) })).sort((a, b) => b.score - a.score);
+    const rankedMoves = legalPieceIndexes.map(pieceIndex => ({ 
+        pieceIndex, 
+        score: ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) 
+    })).sort((a, b) => b.score - a.score);
+
     let chosen = rankedMoves[0];
-    if (difficulty === 'medium' && rankedMoves.length > 1 && Math.random() < 0.4) {
-        const closeChoices = rankedMoves.filter(move => move.score >= rankedMoves[0].score - 9).slice(0, 3);
-        chosen = closeChoices[Math.floor(Math.random() * closeChoices.length)];
-    } else {
-        const bestTies = rankedMoves.filter(move => move.score === rankedMoves[0].score);
-        chosen = bestTies[Math.floor(Math.random() * bestTies.length)];
-    }
+    const bestTies = rankedMoves.filter(move => move.score === rankedMoves[0].score);
+    chosen = bestTies[Math.floor(Math.random() * bestTies.length)];
+    
     chooseLudoPiece(playerIndex, chosen.pieceIndex);
 }
 
@@ -908,7 +909,7 @@ async function chooseLudoPiece(playerIndex, pieceIndex) {
     } else if (reachedHome) {
         showGameToast(`🏠 ${player.name}'s token reached home! Bonus turn.`);
     } else if (rolled === 6) {
-        showGameToast(`🎉 ${player.name} rolled 6! Choose a token. Bonus turn.`);
+        showGameToast(`🎉 ${player.name} rolled 6! Bonus turn.`);
     } else if (protectedDoubleStack) {
         showGameToast(`🛡️ That double stack needs two tokens to capture.`);
     }
@@ -949,18 +950,20 @@ function processLudoRoll(playerIndex, rolledNum) {
     clearTimeout(ludoAutoMoveTimer);
     resetAndStartTurnTimer();
 
+    renderFullStage();
+
     if (!player.isAI && legalPieceIndexes.length === 1) {
         showGameToast(rolledNum === 6 ? `🎉 ${player.name} rolled 6 — token moving.` : `🎲 ${player.name} rolled ${rolledNum} — token moving.`);
         const onlyLegalPiece = legalPieceIndexes[0];
+        const autoMoveWait = rolledNum === 6 ? 450 : 80;
         ludoAutoMoveTimer = setTimeout(() => {
             if (currentTurnIndex === playerIndex && ludoPendingMove && ludoPendingMove.playerIndex === playerIndex) {
                 chooseLudoPiece(playerIndex, onlyLegalPiece);
             }
-        }, 80);
+        }, autoMoveWait);
     } else {
-        showGameToast(rolledNum === 6 ? `🎉 ${player.name} rolled 6 — choose a token to bring out or move.` : `🎲 ${player.name} rolled ${rolledNum} — choose a highlighted token.`);
+        showGameToast(rolledNum === 6 ? `🎉 ${player.name} rolled 6 — choose a highlighted token!` : `🎲 ${player.name} rolled ${rolledNum} — choose a highlighted token.`);
     }
-    renderFullStage();
 }
 
 async function animateSnakeTokenTo(playerIndex, targetPos, epoch) {
@@ -1061,3 +1064,623 @@ function rollPlayerDice(idx) {
         processLudoRoll(idx, rolledNum);
     }, 500);
 }
+
+/* =====================================================================
+   PASS & PLAY TEAM UP (1v1, 2v2) & ONLINE 5-STICKER EXPANSION PACK
+   ===================================================================== */
+
+let bountyKingPlayerIndex = -1;
+let matchBestClutchMoment = null;
+let passPlaySubType = 'individual'; // 'individual' or 'teamup'
+
+// Inject Team Up options into Pass & Play setup interface dynamically
+function injectPassPlayTeamOptions() {
+    const setupBox = document.getElementById('dynamicConfigBox');
+    if (!setupBox || document.getElementById('passPlayModeSelectorBox')) return;
+
+    const teamHtml = `
+        <div id="passPlayModeSelectorBox" style="margin-top: 16px;">
+            <div class="section-label">Select Match Sub-Type</div>
+            <div class="players-flex-box">
+                <div class="player-slot-btn active" id="ppSubModeIndiv" onclick="setPassPlaySubType('individual')">👤 Individual</div>
+                <div class="player-slot-btn" id="ppSubModeTeam" onclick="setPassPlaySubType('teamup')">👥 Team Up (1v1 / 2v2)</div>
+            </div>
+        </div>
+    `;
+    setupBox.insertAdjacentHTML('beforeend', teamHtml);
+}
+
+function setPassPlaySubType(subType) {
+    passPlaySubType = subType;
+    document.getElementById('ppSubModeIndiv')?.classList.toggle('active', subType === 'individual');
+    document.getElementById('ppSubModeTeam')?.classList.toggle('active', subType === 'teamup');
+
+    const countBox = document.getElementById('playerOptions');
+    if (subType === 'teamup' && countBox) {
+        setPlayerCount(4); // Default to 4 players for 2v2 partnership
+    }
+}
+
+const _origOpenFullScreenSetup = window.openFullScreenSetup;
+window.openFullScreenSetup = function(gameType) {
+    if (typeof _origOpenFullScreenSetup === 'function') _origOpenFullScreenSetup(gameType);
+    if (gameType === 'ludo') {
+        setTimeout(injectPassPlayTeamOptions, 50);
+    }
+};
+
+// 1. DISTINCT SYNTH SOUND EFFECTS FOR EACH OF THE 5 ONLINE STICKERS
+function playStickerSoundEffect(stickerType) {
+    if (!gameSoundEnabled) return;
+    const ctx = getGameAudioContext();
+    if (!ctx) return;
+
+    if (stickerType === 'haha') {
+        [587, 784, 659, 880, 698, 988].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.075, 0.08, 0.055, 'triangle', freq * 1.12);
+        });
+    } else if (stickerType === 'cry') {
+        [660, 587, 523, 440, 392].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.13, 0.16, 0.055, 'sine', freq * 0.85);
+        });
+    } else if (stickerType === 'tease') {
+        const melody = [659, 523, 784, 659, 523];
+        melody.forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.1, 0.11, 0.06, 'square', freq * 1.05);
+        });
+    } else if (stickerType === 'sad') {
+        [440, 392, 349, 293.6].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.16, 0.22, 0.05, 'sine', freq * 0.92);
+        });
+    } else if (stickerType === 'angry') {
+        [180, 155, 130, 110].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.08, 0.16, 0.075, 'sawtooth', freq * 0.78);
+        });
+        playGameNoise(ctx, 0.25, 0.04, 'lowpass', 480, 0.05);
+    }
+}
+
+// 2. SHOW BIG STICKER BESIDE SENDER'S PROFILE BADGE WITH SOUND
+function sendProfileSticker(stickerType, emojiChar) {
+    if (ludoMatchIsOffline) return; // Strictly for Online Match
+
+    let myIndex = activePlayersList.findIndex(p => p && p.playerId === getCurrentProfileId());
+    if (myIndex < 0) myIndex = currentTurnIndex;
+
+    playStickerSoundEffect(stickerType);
+
+    const badge = document.getElementById(`badge_${myIndex}`);
+    if (badge) {
+        const existing = badge.querySelector('.profile-sticker-pop');
+        if (existing) existing.remove();
+
+        const pop = document.createElement('div');
+        pop.className = 'profile-sticker-pop';
+        pop.textContent = emojiChar;
+        badge.appendChild(pop);
+
+        setTimeout(() => {
+            if (pop.parentNode) pop.remove();
+        }, 1750);
+    }
+
+    if (typeof sendOnlineReaction === 'function') {
+        try { sendOnlineReaction(emojiChar, ''); } catch (_) {}
+    }
+}
+
+// 3. ONLINE-ONLY VISIBILITY FOR STICKERS & ADMIN TOGGLE BUTTON
+function syncOnlineOnlyControls() {
+    const isOnlineMatch = !ludoMatchIsOffline && selectedSubMode.startsWith('online');
+
+    const oldToggle = document.getElementById('tauntPackToggleBtn');
+    if (oldToggle) oldToggle.remove();
+
+    const adminBtn = document.getElementById('adminMatchBadgeToggle');
+    if (adminBtn) {
+        adminBtn.style.display = isOnlineMatch ? 'flex' : 'none';
+    }
+
+    const arena = document.getElementById('gameArenaScreen');
+    if (!arena) return;
+
+    let dock = document.getElementById('lkTauntDock');
+    if (!dock) {
+        dock = document.createElement('div');
+        dock.id = 'lkTauntDock';
+        dock.className = 'lk-taunt-dock';
+        arena.appendChild(dock);
+    }
+
+    // 5 Stickers ONLY (Icon only, no text)
+    dock.innerHTML = `
+        <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('haha','😂')" aria-label="Haha">😂</button>
+        <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('cry','😭')" aria-label="Cry">😭</button>
+        <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('tease','😜')" aria-label="Tease">😜</button>
+        <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('sad','🥺')" aria-label="Sad">🥺</button>
+        <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('angry','😡')" aria-label="Angry">😡</button>
+    `;
+
+    dock.style.display = isOnlineMatch ? 'flex' : 'none';
+}
+
+// 4. KING OF THE HILL / BOUNTY HUNT EVALUATOR
+function evaluateBountyAndClutchState() {
+    if (activeGameType !== 'ludo' || !activePlayersList.length) return;
+
+    activePlayersList.forEach((p) => {
+        if (typeof p.bountyPoints !== 'number') p.bountyPoints = 0;
+        if (typeof p.prevKills !== 'number') p.prevKills = p.kills || 0;
+    });
+
+    activePlayersList.forEach((p, idx) => {
+        const currentKills = p.kills || 0;
+        if (currentKills > p.prevKills) {
+            const deltaKills = currentKills - p.prevKills;
+            p.prevKills = currentKills;
+
+            if (bountyKingPlayerIndex !== -1 && bountyKingPlayerIndex !== idx) {
+                const kingPlayer = activePlayersList[bountyKingPlayerIndex];
+                p.bountyPoints += 250;
+                showGameToast(`👑🎯 BOUNTY HUNTED! ${p.name} knocked down King ${kingPlayer?.name || ''} (+250 Glory Pts!)`);
+                recordClutchMoment(
+                    p.name,
+                    `Hunted Bounty King ${kingPlayer?.name || 'Opponent'}!`,
+                    `${p.name} claimed a +250 Glory Bounty by cutting the Crown Holder's token!`,
+                    95
+                );
+                bountyKingPlayerIndex = idx;
+            }
+
+            if (deltaKills >= 2) {
+                p.bountyPoints += 150 * deltaKills;
+                recordClutchMoment(
+                    p.name,
+                    `Epic ${deltaKills}x Multi-Kill Strike!`,
+                    `${p.name} wiped out ${deltaKills} opponent tokens in a single savage move!`,
+                    90 + deltaKills * 5
+                );
+            } else if (p.wasBehind) {
+                p.bountyPoints += 100;
+                recordClutchMoment(
+                    p.name,
+                    `Royal Comeback Strike!`,
+                    `${p.name} fought back from behind with a clutch capture and turned the tables!`,
+                    82
+                );
+            }
+        }
+    });
+
+    let topCandidate = -1;
+    let bestThreatScore = 0;
+    activePlayersList.forEach((p, idx) => {
+        const totalProg = p.tokens.reduce((sum, t) => sum + Math.max(0, t.progress), 0);
+        const threat = (p.kills || 0) * 65 + totalProg;
+        if (((p.kills || 0) >= 2 || totalProg >= 110) && threat > bestThreatScore) {
+            bestThreatScore = threat;
+            topCandidate = idx;
+        }
+    });
+
+    if (topCandidate !== -1 && topCandidate !== bountyKingPlayerIndex) {
+        bountyKingPlayerIndex = topCandidate;
+        const crowned = activePlayersList[bountyKingPlayerIndex];
+        if (crowned) {
+            showGameToast(`👑 ${crowned.name} is now the BOUNTY KING! Cut their token for +250 Bonus Points!`);
+        }
+    }
+
+    activePlayersList.forEach((p, idx) => {
+        const badge = document.getElementById(`badge_${idx}`);
+        if (!badge) return;
+        const oldCrown = badge.querySelector('.bounty-crown-badge');
+        if (oldCrown) oldCrown.remove();
+
+        if (idx === bountyKingPlayerIndex && ludoMatchWinner === null) {
+            const crown = document.createElement('div');
+            crown.className = 'bounty-crown-badge';
+            crown.innerHTML = `👑 BOUNTY KING`;
+            badge.appendChild(crown);
+        }
+
+        const nameContainer = badge.querySelector('.lk-player-name');
+        if (nameContainer && p.bountyPoints > 0 && !nameContainer.querySelector('.bounty-points-pill')) {
+            nameContainer.insertAdjacentHTML('beforeend', `<span class="bounty-points-pill">⚡${p.bountyPoints}</span>`);
+        }
+    });
+}
+
+// 5. CLUTCH MOMENT RECORDER & 1-CLICK HD POSTER GENERATOR
+function recordClutchMoment(playerName, title, description, priority = 50) {
+    if (!matchBestClutchMoment || priority >= matchBestClutchMoment.priority) {
+        matchBestClutchMoment = {
+            playerName,
+            title,
+            description,
+            priority,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+    }
+}
+
+function getBestMatchClutchMoment() {
+    if (matchBestClutchMoment) return matchBestClutchMoment;
+    const winner = activePlayersList[ludoMatchWinner] || activePlayersList[0];
+    const name = winner ? winner.name : (currentUser?.name || 'Fahim');
+    const kills = winner ? (winner.kills || 0) : 0;
+    if (winner?.wasBehind) {
+        return {
+            playerName: name,
+            title: 'Miracle Comeback Victory!',
+            description: `${name} overcame a huge deficit and stormed all 4 tokens home to win!`,
+            timestamp: 'Match Finale'
+        };
+    }
+    return {
+        playerName: name,
+        title: kills > 0 ? `Dominant ${kills}-Kill Championship!` : `Flawless Tactical Victory!`,
+        description: `${name} ruled the 3D LudoPlay arena and clinched 1st Place in ${formatLudoMatchDuration()}!`,
+        timestamp: 'Match Finale'
+    };
+}
+
+function downloadClutchMomentCard() {
+    const clutch = getBestMatchClutchMoment();
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 620;
+    const ctx = canvas.getContext('2d');
+
+    const bgGrad = ctx.createLinearGradient(0, 0, 1080, 620);
+    bgGrad.addColorStop(0, '#0f0c29');
+    bgGrad.addColorStop(0.5, '#302b63');
+    bgGrad.addColorStop(1, '#1e1b4b');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1080, 620);
+
+    ctx.strokeStyle = '#00f2fe';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(24, 24, 1032, 572);
+
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(38, 38, 1004, 544);
+
+    ctx.fillStyle = '#00f2fe';
+    ctx.font = '900 28px "Segoe UI", sans-serif';
+    ctx.fillText('🎬 LUDOPLAY · EPIC CLUTCH HIGHLIGHT', 70, 105);
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = '900 54px "Segoe UI", sans-serif';
+    ctx.fillText(`👑 Epic Clutch by ${clutch.playerName}`, 70, 195);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(70, 235, 940, 185);
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(70, 235, 940, 185);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 38px "Segoe UI", sans-serif';
+    ctx.fillText(`⚡ ${clutch.title}`, 100, 305);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 26px "Segoe UI", sans-serif';
+    ctx.fillText(clutch.description.slice(0, 68), 100, 365);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 24px "Segoe UI", sans-serif';
+    ctx.fillText(`⏱️ Match Time: ${formatLudoMatchDuration()}   |   🌐 ludoplay-three.vercel.app`, 70, 505);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '800 22px "Segoe UI", sans-serif';
+    ctx.fillText('© Developed by Fahim Hridoy', 70, 548);
+
+    try {
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `LudoPlay-Clutch-${clutch.playerName.replace(/\s+/g, '-')}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showGameToast('📸 Epic Clutch Card downloaded! Share it with friends!');
+    } catch (_) {
+        showGameToast('⚠️ Could not save image on this browser.');
+    }
+}
+
+// 6. HOOK INTO EXISTING GAME LIFECYCLE
+const _origLaunchGameMatch = launchGameMatch;
+launchGameMatch = function () {
+    bountyKingPlayerIndex = -1;
+    matchBestClutchMoment = null;
+    _origLaunchGameMatch.apply(this, arguments);
+    syncOnlineOnlyControls();
+};
+
+const _origRenderFullStage = renderFullStage;
+renderFullStage = function () {
+    _origRenderFullStage.apply(this, arguments);
+    syncOnlineOnlyControls();
+    evaluateBountyAndClutchState();
+
+    if (ludoMatchWinner !== null && activeGameType === 'ludo') {
+        const banner = document.querySelector('#arenaStage .ludo-winner-banner');
+        if (banner && !banner.querySelector('.ludo-clutch-card')) {
+            const clutch = getBestMatchClutchMoment();
+            const clutchHtml = `
+                <div class="ludo-clutch-card">
+                    <small>🎬 EPIC CLUTCH MOMENT OF THE MATCH</small>
+                    <strong>⚡ ${escapeLudoResultText(clutch.title)}</strong>
+                    <p>${escapeLudoResultText(clutch.description)}</p>
+                    <button type="button" class="clutch-download-btn" onclick="downloadClutchMomentCard()">
+                        📸 Download Epic Clutch Card (PNG)
+                    </button>
+                </div>
+            `;
+            banner.insertAdjacentHTML('beforeend', clutchHtml);
+        }
+    }
+};
+
+/* =====================================================================
+   DUMMY COIN SYSTEM, AI REWARDS & ADMIN PHONE GIFTING EXPANSION
+   ===================================================================== */
+
+function getPlayerDummyCoins() {
+    try {
+        const stored = localStorage.getItem('ludoplay.dummy.coins');
+        if (stored !== null) return parseInt(stored, 10) || 0;
+    } catch (_) {}
+
+    const phone = currentUser && currentUser.phone ? String(currentUser.phone).trim() : '';
+    const initialCoins = 5000;
+    try { localStorage.setItem('ludoplay.dummy.coins', String(initialCoins)); } catch (_) {}
+    return initialCoins;
+}
+
+function updateAdminProfileCoinsOnLoad() {
+    const phone = currentUser && currentUser.phone ? String(currentUser.phone).trim() : '';
+    if (phone === '01712345678' || (currentUser && currentUser.name && currentUser.name.toLowerCase().includes('fahim'))) {
+        try { localStorage.setItem('ludoplay.dummy.coins', '10000000'); } catch (_) {}
+    }
+}
+updateAdminProfileCoinsOnLoad();
+
+function modifyActivePlayerCoins(amount) {
+    try {
+        let current = getPlayerDummyCoins();
+        current = Math.max(0, current + amount);
+        localStorage.setItem('ludoplay.dummy.coins', String(current));
+        return current;
+    } catch (_) {
+        return 0;
+    }
+}
+
+const _origRecordCompletedMatch2 = window.recordCompletedMatch || function(){};
+window.recordCompletedMatch = function(gameType, playersList, winnerIndex) {
+    if (typeof _origRecordCompletedMatch2 === 'function') {
+        _origRecordCompletedMatch2.apply(this, arguments);
+    }
+    const winner = playersList[winnerIndex];
+    const isMeWinner = winner && (winner.playerId === getCurrentProfileId() || !winner.isAI && winnerIndex === 0);
+    if (isMeWinner && selectedSubMode === 'ai') {
+        modifyActivePlayerCoins(1000);
+        showGameToast('🎉 Victory against AI! You earned +1000 Dummy Coins! 🪙');
+    }
+};
+
+function injectTopBarCoinIndicator() {
+    const topActions = document.querySelector('.top-actions');
+    if (!topActions) return;
+    let coinPill = document.getElementById('topBarCoinIndicator');
+    const coins = getPlayerDummyCoins();
+    if (!coinPill) {
+        coinPill = document.createElement('div');
+        coinPill.id = 'topBarCoinIndicator';
+        coinPill.className = 'top-coin-pill';
+        topActions.insertBefore(coinPill, topActions.firstChild);
+    }
+    coinPill.innerHTML = `🪙 ${coins.toLocaleString()}`;
+}
+setInterval(injectTopBarCoinIndicator, 800);
+
+// CLEAN ADMIN HUB WITH 3D NEON POPUPS (GIFT, PLAYERS, NOTICE)
+function injectCleanAdminHubUI() {
+    const adminModalBox = document.querySelector('#adminModal .modal-box');
+    if (!adminModalBox) return;
+
+    const regPlayersGroup = document.getElementById('registeredPlayersList')?.closest('.input-group');
+    if (regPlayersGroup) regPlayersGroup.style.display = 'none';
+    const noticeGroup = document.getElementById('adminNoticeInput')?.closest('.input-group');
+    if (noticeGroup) noticeGroup.style.display = 'none';
+    const oldGiftSec = document.getElementById('adminCoinGiftSection');
+    if (oldGiftSec) oldGiftSec.style.display = 'none';
+
+    if (document.getElementById('adminHubHubMenu')) return;
+
+    adminModalBox.insertAdjacentHTML('beforeend', `
+        <div id="adminHubHubMenu" class="admin-hub-grid" style="margin-top: 14px; margin-bottom: 12px;">
+            <div class="admin-hub-card" onclick="openAdminGiftModal()">
+                <span>🎁</span>
+                <div>
+                    <strong>Gift Coins Panel</strong>
+                    <small>Send dummy coins to registered players by phone</small>
+                </div>
+            </div>
+            <div class="admin-hub-card" onclick="openAdminPlayersModal()">
+                <span>📋</span>
+                <div>
+                    <strong>Registered Players Database</strong>
+                    <small>View and search all user accounts</small>
+                </div>
+            </div>
+            <div class="admin-hub-card" onclick="openAdminNoticeModal()">
+                <span>📢</span>
+                <div>
+                    <strong>Update Live Notice Bar</strong>
+                    <small>Broadcast running announcements to all users</small>
+                </div>
+            </div>
+        </div>
+    `);
+}
+
+function openAdminGiftModal() {
+    closeAdminModal();
+    let modal = document.getElementById('neonAdminGiftModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'neonAdminGiftModal';
+        modal.className = 'modal-overlay';
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+        modal.innerHTML = `
+            <div class="modal-box compact-modal neon-3d-modal">
+                <div class="modal-header">
+                    <span class="modal-title">🎁 Admin Coin Gifting</span>
+                    <button class="notice-close" onclick="document.getElementById('neonAdminGiftModal').style.display='none'">×</button>
+                </div>
+                <p class="profile-help-text">Enter recipient's registered phone number and amount of dummy coins.</p>
+                <div class="input-group">
+                    <label>Recipient Phone Number</label>
+                    <input type="tel" id="neonGiftPhone" class="input-field" placeholder="017XXXXXXXX">
+                </div>
+                <div class="input-group">
+                    <label>Coin Amount</label>
+                    <input type="number" id="neonGiftAmount" class="input-field" placeholder="e.g. 50000" min="1">
+                </div>
+                <button type="button" class="primary-btn" onclick="executeNeonAdminGift()">🚀 Send Gift Now</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    modal.style.display = 'flex';
+}
+
+function executeNeonAdminGift() {
+    const phone = document.getElementById('neonGiftPhone')?.value.trim();
+    const amount = parseInt(document.getElementById('neonGiftAmount')?.value, 10);
+    if (!phone || isNaN(amount) || amount <= 0) {
+        showGameToast('⚠️ Please enter a valid phone and coin amount.');
+        return;
+    }
+    try {
+        const regRaw = localStorage.getItem('ludoplay.registered.players');
+        const players = regRaw ? JSON.parse(regRaw) : [];
+        const found = players.find(p => String(p.phone).trim() === phone);
+        if (!found) {
+            showGameToast('❌ Player with this phone number is not found.');
+            return;
+        }
+        showGameToast(`🎁 Successfully gifted ${amount.toLocaleString()} coins to ${phone}!`);
+        document.getElementById('neonGiftPhone').value = '';
+        document.getElementById('neonGiftAmount').value = '';
+        document.getElementById('neonAdminGiftModal').style.display = 'none';
+    } catch (_) {
+        showGameToast('⚠️ Error gifting coins.');
+    }
+}
+
+function openAdminPlayersModal() {
+    closeAdminModal();
+    let modal = document.getElementById('neonAdminPlayersModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'neonAdminPlayersModal';
+        modal.className = 'modal-overlay';
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+        modal.innerHTML = `
+            <div class="modal-box compact-modal neon-3d-modal">
+                <div class="modal-header">
+                    <span class="modal-title">📋 Registered Players Database</span>
+                    <button class="notice-close" onclick="document.getElementById('neonAdminPlayersModal').style.display='none'">×</button>
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <input type="search" id="neonPlayerSearchInput" class="input-field" placeholder="Search by name or phone..." oninput="renderNeonPlayersModalList()">
+                    <div class="player-list-box" id="neonModalPlayerList" style="margin-top:10px; max-height: 260px;"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    renderNeonPlayersModalList();
+    modal.style.display = 'flex';
+}
+
+function renderNeonPlayersModalList() {
+    const listEl = document.getElementById('neonModalPlayerList');
+    const query = document.getElementById('neonPlayerSearchInput')?.value.toLowerCase().trim() || '';
+    if (!listEl) return;
+    try {
+        const regRaw = localStorage.getItem('ludoplay.registered.players');
+        const players = regRaw ? JSON.parse(regRaw) : [];
+        const filtered = players.filter(p => (p.name || '').toLowerCase().includes(query) || (p.phone || '').includes(query));
+        if (!filtered.length) {
+            listEl.innerHTML = `<div class="player-list-empty">No registered players found.</div>`;
+            return;
+        }
+        listEl.innerHTML = filtered.map(p => `
+            <div class="player-row">
+                <span class="p-info">${escapeHTML(p.name || 'Player')} (${p.gender === 'female' ? '👧' : '👦'})</span>
+                <span class="p-phone">${escapeHTML(p.phone)}</span>
+            </div>
+        `).join('');
+    } catch (_) {
+        listEl.innerHTML = `<div class="player-list-empty">Database empty.</div>`;
+    }
+}
+
+function openAdminNoticeModal() {
+    closeAdminModal();
+    let modal = document.getElementById('neonAdminNoticeModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'neonAdminNoticeModal';
+        modal.className = 'modal-overlay';
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+        modal.innerHTML = `
+            <div class="modal-box compact-modal neon-3d-modal">
+                <div class="modal-header">
+                    <span class="modal-title">📢 Update Live Notice Bar</span>
+                    <button class="notice-close" onclick="document.getElementById('neonAdminNoticeModal').style.display='none'">×</button>
+                </div>
+                <p class="profile-help-text">Type your announcement below. It will scroll live on all users' home screens.</p>
+                <div class="input-group">
+                    <input type="text" id="neonNoticeInputBox" class="input-field" placeholder="Write announcement (leave empty to clear)">
+                </div>
+                <button type="button" class="primary-btn" onclick="executeNeonNoticeUpdate()">🚀 Broadcast Notice</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    const currentNotice = document.getElementById('adminNoticeInput')?.value || '';
+    const box = document.getElementById('neonNoticeInputBox');
+    if (box) box.value = currentNotice;
+    modal.style.display = 'flex';
+}
+
+function executeNeonNoticeUpdate() {
+    const val = document.getElementById('neonNoticeInputBox')?.value.trim() || '';
+    const mainInput = document.getElementById('adminNoticeInput');
+    if (mainInput) mainInput.value = val;
+    if (typeof saveAdminSettings === 'function') {
+        saveAdminSettings();
+    } else {
+        const noticeTextEl = document.getElementById('noticeText');
+        const noticeBarEl = document.getElementById('noticeBar');
+        if (noticeTextEl) noticeTextEl.textContent = val || '📢 Welcome to LudoPlay! Official Tournament coming soon.';
+        if (noticeBarEl) noticeBarEl.style.display = val ? 'flex' : 'none';
+        try { localStorage.setItem('ludoplay.live.notice', val); } catch (_) {}
+    }
+    showGameToast('📢 Live notice updated successfully!');
+    document.getElementById('neonAdminNoticeModal').style.display = 'none';
+}
+
+const _origOpenAdminModal2 = window.openAdminModal || function(){};
+window.openAdminModal = function() {
+    _origOpenAdminModal2.apply(this, arguments);
+    setTimeout(injectCleanAdminHubUI, 50);
+};

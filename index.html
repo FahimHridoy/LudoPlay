@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="LudoPlay">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="style.css?v=20261020v2">
+    <link rel="stylesheet" href="style.css?v=20261020final">
 </head>
 <body>
 
@@ -37,9 +37,11 @@
         </div>
     </div>
 
-    <!-- NOTICE BAR -->
+    <!-- NOTICE BAR (SHAPER MOTO HORIZONTAL SCROLLING TEXT) -->
     <div class="notice-pill" id="noticeBar">
-        <span class="notice-text" id="noticeText">📢 Welcome to LudoPlay! Official Tournament coming soon.</span>
+        <div class="notice-track">
+            <span class="notice-text" id="noticeText">📢 Welcome to LudoPlay! Official Tournament coming soon.</span>
+        </div>
         <button class="notice-close" onclick="dismissNotice()" aria-label="Dismiss notice">×</button>
     </div>
 
@@ -166,49 +168,10 @@
     </div>
 
     <!-- MODALS -->
-    <!-- 3D PUBLISHING SOON POPUP (FOR NON-ADMIN ONLINE/TOURNEY CLICK) -->
-    <div class="modal-overlay" id="publishingSoonModal">
-        <div class="modal-box compact-modal publishing-soon-3d-box">
-            <div class="publishing-soon-icon">🚀</div>
-            <h2 class="publishing-soon-title">Publishing Soon!</h2>
-            <p class="publishing-soon-subtitle">Stay with us ✨</p>
-            <p class="profile-help-text" style="text-align:center; margin-top:8px;">
-                Real-time Online Multiplayer & Live Championship Servers are getting ready. Enjoy Smart AI & Pass & Play Offline modes right now!
-            </p>
-            <button class="primary-btn" type="button" onclick="closePublishingSoonModal()">Got It! 🎮</button>
-        </div>
-    </div>
-
-    <!-- 3D ADD TO HOME POPUP -->
-    <div class="modal-overlay" id="installHelpModal">
-        <div class="modal-box compact-modal publishing-soon-3d-box">
-            <div class="modal-header" style="width:100%;">
-                <span class="modal-title">⬇️ Add LudoPlay to Home</span>
-                <button class="notice-close" onclick="closeInstallModal()">×</button>
-            </div>
-            <div class="publishing-soon-icon" style="font-size:54px; margin: 4px 0 10px;">📲</div>
-            <h3 class="publishing-soon-title" style="font-size:22px;">Install LudoPlay 3D App</h3>
-            <p class="profile-help-text" style="text-align:center; margin-top:6px;">
-                Tap the 3D <strong>Add</strong> button below to place LudoPlay directly on your Home Screen for instant full-screen offline & online play!
-            </p>
-            <button class="start-match-btn" type="button" id="confirmInstall3DBtn" onclick="triggerHomeInstallAction()" style="margin-top:10px; padding:14px;">
-                ➕ Add to Home Screen
-            </button>
-            <div id="manualInstallGuideBox" style="display:none; width:100%; text-align:left; margin-top:14px; padding:12px; border-radius:14px; background:rgba(0,0,0,0.35); border:1px solid rgba(0,242,254,0.35);">
-                <p class="profile-help-text" style="margin-bottom:6px; color:#fde68a; font-weight:800;">📌 Quick 1-Tap Browser Action:</p>
-                <ul class="install-steps" style="margin:0 0 0 18px; font-size:12px; line-height:1.7;">
-                    <li><strong>Android / Chrome:</strong> Tap browser menu <strong>⋮</strong> (top-right) → <strong>Add to Home screen / Install app</strong>.</li>
-                    <li><strong>iPhone / Safari:</strong> Tap <strong>Share</strong> icon → <strong>Add to Home Screen</strong>.</li>
-                    <li><strong>Desktop / PC:</strong> Click the <strong>Install ⊕</strong> icon in the address bar.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="onlineMatchPopup">
+    <div class="modal-overlay" id="onlineMatchPopup" onclick="if(event.target === this) closeOnlinePopup()">
         <div class="modal-box">
             <div class="modal-header">
-                <span class="modal-title">🌐 Online Match Modes (Admin Testing)</span>
+                <span class="modal-title">🌐 Online Match Modes</span>
                 <button class="notice-close" onclick="closeOnlinePopup()">×</button>
             </div>
             <div class="popup-grid-3d">
@@ -234,7 +197,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="spectatorJoinModal">
+    <div class="modal-overlay" id="spectatorJoinModal" onclick="if(event.target === this) closeSpectatorJoinModal()">
         <div class="modal-box compact-modal">
             <div class="modal-header"><span class="modal-title">👁 Join as spectator</span><button class="notice-close" onclick="closeSpectatorJoinModal()">×</button></div>
             <p class="profile-help-text">Enter the room code. Players in that match will see your name and can accept or deny your request.</p>
@@ -245,8 +208,7 @@
         </div>
     </div>
 
-    <!-- UPDATED PROFILE MODAL WITH STATS, PHOTO UPLOAD & LOGOUT -->
-    <div class="modal-overlay" id="profileModal">
+    <div class="modal-overlay" id="profileModal" onclick="if(event.target === this) closeProfileModal()">
         <div class="modal-box compact-modal profile-modal-box">
             <div class="modal-header">
                 <span class="modal-title" id="profileModalTitle">🏅 Player profile</span>
@@ -275,8 +237,7 @@
         </div>
     </div>
 
-    <!-- 3D INVENTORY MODAL (DICE, TOKENS, BOARDS) -->
-    <div class="modal-overlay" id="inventoryModal">
+    <div class="modal-overlay" id="inventoryModal" onclick="if(event.target === this) closeInventoryModal()">
         <div class="modal-box">
             <div class="modal-header">
                 <span class="modal-title">🎒 3D Premium Inventory (Free)</span>
@@ -304,8 +265,7 @@
         </div>
     </div>
 
-    <!-- 3D FRIENDS MODAL (SEARCH BY PHONE, REQUESTS, INVITE, UNFRIEND) -->
-    <div class="modal-overlay" id="friendsModal">
+    <div class="modal-overlay" id="friendsModal" onclick="if(event.target === this) closeFriendsModal()">
         <div class="modal-box">
             <div class="modal-header">
                 <span class="modal-title">👥 Friends & Online Invite</span>
@@ -333,8 +293,7 @@
         </div>
     </div>
 
-    <!-- 3D SETTINGS MODAL (SOUND, LANGUAGE, THEME, SHARE, 3-STAR RATING) -->
-    <div class="modal-overlay" id="settingsModal">
+    <div class="modal-overlay" id="settingsModal" onclick="if(event.target === this) closeSettingsModal()">
         <div class="modal-box compact-modal">
             <div class="modal-header">
                 <span class="modal-title">⚙️ Game Settings</span>
@@ -394,8 +353,7 @@
         </div>
     </div>
 
-    <!-- REPORT & SUGGESTION MODAL (DIRECT TO kishore.club.85@gmail.com) -->
-    <div class="modal-overlay" id="reportModal">
+    <div class="modal-overlay" id="reportModal" onclick="if(event.target === this) closeReportModal()">
         <div class="modal-box compact-modal">
             <div class="modal-header">
                 <span class="modal-title">🐞 Report & Suggestion</span>
@@ -414,27 +372,16 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="passPlayPopup">
-        <div class="modal-box">
-            <div class="modal-header">
-                <span class="modal-title">👥 Pass & Play Modes</span>
-                <button class="notice-close" onclick="closePassPlayPopup()">×</button>
-            </div>
-            <div class="popup-grid-3d">
-                <div class="popup-option-card active" id="pp_normal" onclick="selectPassPlaySubMode('normal')">
-                    <span class="popup-icon">🎯</span>
-                    <div class="popup-text"><div class="p-title">Normal Match</div><div class="p-desc">Standard local rules</div></div>
-                </div>
-                <div class="popup-option-card" id="pp_quick" onclick="selectPassPlaySubMode('quick')">
-                    <span class="popup-icon">⚡</span>
-                    <div class="popup-text"><div class="p-title">Quick Match</div><div class="p-desc">Home locked until 1 token kill</div></div>
-                </div>
-            </div>
-            <button class="primary-btn" onclick="confirmPassPlayMode()">Select Rule 🚀</button>
+    <div class="modal-overlay" id="installHelpModal" onclick="if(event.target === this) document.getElementById('installHelpModal').style.display='none'">
+        <div class="modal-box compact-modal">
+            <div class="modal-header"><span class="modal-title">⬇️ Add LudoPlay to Home</span><button class="notice-close" onclick="document.getElementById('installHelpModal').style.display='none'">×</button></div>
+            <p class="profile-help-text">Open this game from its secure HTTPS address, then use your browser menu:</p>
+            <ul class="install-steps"><li><strong>Android / Chrome:</strong> tap ⋮ → Install app or Add to Home screen.</li><li><strong>iPhone / Safari:</strong> tap Share → Add to Home Screen.</li><li><strong>PC:</strong> use the install icon in the browser address bar.</li></ul>
+            <p class="profile-help-text">A local file (file://) cannot be installed as a web app. Hosting setup is required first.</p>
         </div>
     </div>
 
-    <div class="modal-overlay" id="loginModal">
+    <div class="modal-overlay" id="loginModal" onclick="if(event.target === this) closeLoginModal()">
         <div class="modal-box">
             <div class="modal-header">
                 <span class="modal-title">👤 Player Profile & Login</span>
@@ -467,7 +414,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="savedGamesModal">
+    <div class="modal-overlay" id="savedGamesModal" onclick="if(event.target === this) closeSavedGamesModal()">
         <div class="modal-box compact-modal saved-games-modal">
             <div class="modal-header"><span class="modal-title">📂 Load Saved Game</span><button class="notice-close" onclick="closeSavedGamesModal()">×</button></div>
             <p class="profile-help-text">Offline matches auto-save after each completed move. Choose a saved date to continue.</p>
@@ -475,7 +422,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="adminModal">
+    <div class="modal-overlay" id="adminModal" onclick="if(event.target === this) closeAdminModal()">
         <div class="modal-box">
             <div class="modal-header">
                 <span class="modal-title">👑 Admin Global Controls</span>
@@ -524,8 +471,8 @@
         <span class="dev-signature" id="devFooter" onclick="triggerAdminTap()">©Developed by Fahim Hridoy</span>
     </footer>
 
-    <script src="app.js?v=20261020v2"></script>
-    <script src="ludo.js?v=20261020v2"></script>
-    <script src="snake.js?v=20261020v2"></script>
+    <script src="app.js?v=20261020final"></script>
+    <script src="ludo.js?v=20261020final"></script>
+    <script src="snake.js?v=20261020final"></script>
 </body>
 </html>

@@ -141,17 +141,19 @@ html, body {
 .admin-quick-btn { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); border: none; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.45); display: none; }
 .top-avatar-thumb { width: 20px; height: 20px; border-radius: 50%; background-size: cover; background-position: center; border: 1.5px solid #00f2fe; flex: none; }
 
+/* NEWS TICKER MARQUEE NOTICE BAR */
 .notice-pill {
     margin: 6px auto 0; width: 92%; max-width: 600px; flex-shrink: 0;
-    background: linear-gradient(90deg, rgba(15, 23, 42, 0.65), rgba(30, 41, 59, 0.65));
-    border: 1px solid var(--card-border); backdrop-filter: blur(8px); padding: 5px 18px; border-radius: 30px;
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
+    border: 1px solid var(--card-border); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 30px;
     display: flex; align-items: center; justify-content: space-between; font-size: 13px; box-shadow: 0 4px 15px rgba(0,0,0,0.25);
-    touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none;
-    transition: transform .2s ease, opacity .2s ease;
+    overflow: hidden; position: relative; transition: transform .2s ease, opacity .2s ease;
 }
 .notice-pill.is-dismissing { transform: translateY(-5px) scale(.96); opacity: 0; pointer-events: none; }
-.notice-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f1f5f9; }
-.notice-close { background: none; border: none; color: #cbd5e1; font-size: 18px; cursor: pointer; margin-left: 10px; }
+.notice-track { width: 100%; overflow: hidden; white-space: nowrap; display: flex; }
+.notice-text { display: inline-block; color: #f1f5f9; font-weight: 700; padding-left: 100%; animation: marqueeNotice 16s linear infinite; }
+@keyframes marqueeNotice { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+.notice-close { background: none; border: none; color: #cbd5e1; font-size: 18px; cursor: pointer; margin-left: 10px; z-index: 3; flex: none; }
 
 .main-container {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -207,28 +209,6 @@ html, body {
     position: absolute; top: -5px; right: 10px; min-width: 18px; height: 18px; padding: 0 5px;
     border-radius: 999px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 900;
     display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #fff;
-}
-
-/* 3D PUBLISHING SOON & INSTALL POPUP */
-.publishing-soon-3d-box {
-    display: flex; flex-direction: column; align-items: center; text-align: center;
-    background: linear-gradient(145deg, #1e1b4b 0%, #3b0764 55%, #0f172a 100%);
-    border: 2px solid #00f2fe;
-    box-shadow: 0 16px 0 #090d16, 0 28px 60px rgba(0, 242, 254, 0.4);
-}
-.publishing-soon-icon {
-    font-size: 64px; margin-bottom: 8px;
-    filter: drop-shadow(0 10px 14px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(0,242,254,0.55));
-    animation: floatIcon 2.4s ease-in-out infinite;
-}
-.publishing-soon-title {
-    font-size: clamp(24px, 5vw, 32px); font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px;
-    background: linear-gradient(135deg, #ffffff 0%, #facc15 50%, #00f2fe 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 4px 0 rgba(0,0,0,0.5));
-}
-.publishing-soon-subtitle {
-    font-size: 16px; font-weight: 800; color: #fde047; margin-top: 4px; letter-spacing: 1px;
 }
 
 /* 3D SUBTABS & INVENTORY / FRIENDS / SETTINGS MODALS */
@@ -524,7 +504,7 @@ html, body {
 }
 .lk-player-badge.inactive-slot { opacity: 0; pointer-events: none; }
 
-/* VISUAL TURN TIMER RING */
+/* VISUAL TURN TIMER RING (ONLINE MATCH ONLY) */
 .lk-avatar-col { position: relative; display: flex; flex-direction: column; align-items: center; width: 44px; z-index: 1; }
 .lk-timer-ring {
     position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
@@ -637,11 +617,24 @@ html, body {
 .board-cell {
     border: 0.5px solid #94a3b8; background: #fff;
     display: flex; align-items: center; justify-content: center; position: relative;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 .board-cell.lane-red, .board-cell.start-red { background: #dc1824; color: #fff; }
 .board-cell.lane-green, .board-cell.start-green { background: #008844; color: #fff; }
 .board-cell.lane-yellow, .board-cell.start-yellow { background: #e6c200; color: #fff; }
 .board-cell.lane-blue, .board-cell.start-blue { background: #0877c4; color: #fff; }
+
+/* 3D NEON GLOW HIGHLIGHT FOR 6 ROLLED START CELLS */
+.board-cell.dice-six-highlight {
+    background: #00f2fe !important;
+    box-shadow: inset 0 0 15px #ffffff, 0 0 25px #00f2fe, 0 0 40px #7f00ff;
+    animation: neonCellPulse 0.6s ease-in-out infinite alternate;
+    z-index: 5;
+}
+@keyframes neonCellPulse {
+    from { filter: brightness(1); transform: scale(1); }
+    to { filter: brightness(1.4); transform: scale(1.08); }
+}
 
 /* BOARD THEMES (SAFE ZONES & CELLS FULLY INTACT) */
 [data-board-skin="royal_marble"] .board-cell:not(.lane-red):not(.lane-green):not(.lane-yellow):not(.lane-blue):not(.start-red):not(.start-green):not(.start-yellow):not(.start-blue) { background: linear-gradient(135deg, #fffdf9, #ede9fe); border-color: #a78bfa; }
@@ -681,69 +674,11 @@ html, body {
     border: 1.5px solid rgba(255,255,255,0.9);
     box-shadow: inset 0 2px 4px rgba(15,23,42,0.2), inset 0 -2px 3px rgba(255,255,255,0.72), 0 2px 3px rgba(15,23,42,0.24);
     display: flex; align-items: center; justify-content: center; position: relative; z-index: 1;
-    overflow: visible;
 }
 .spot-red { background: radial-gradient(circle, #fda4af 0 34%, #f9a8b0 44%, #ffe1e2 57%, #e56b74 68%, #fca5a5 100%); }
 .spot-green { background: radial-gradient(circle, #86efac 0 34%, #a7f3d0 44%, #ecfdf5 57%, #61c995 68%, #a7f3d0 100%); }
 .spot-yellow { background: radial-gradient(circle, #fde68a 0 34%, #fef3c7 44%, #fffde7 57%, #e5c255 68%, #fde68a 100%); }
 .spot-blue { background: radial-gradient(circle, #7dd3fc 0 34%, #bae6fd 44%, #effaff 57%, #5baedc 68%, #bae6fd 100%); }
-
-/* ============================================================================
-   3D NEON SPIROGRAPH SPINNING RING ON HOME TOKEN SPOTS WHEN 6 IS ROLLED
-============================================================================ */
-.token-spot.six-ready-spot::before,
-.token-spot.six-ready-spot::after {
-    content: '';
-    position: absolute;
-    inset: -26%;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 0;
-}
-.token-spot.six-ready-spot::before {
-    background: repeating-conic-gradient(
-        from 0deg,
-        rgba(255, 42, 133, 0.95) 0deg 8deg,
-        rgba(255, 230, 128, 0.98) 8deg 14deg,
-        transparent 14deg 24deg
-    );
-    -webkit-mask: radial-gradient(circle, transparent 42%, #000 50% 68%, transparent 72%);
-    mask: radial-gradient(circle, transparent 42%, #000 50% 68%, transparent 72%);
-    filter: drop-shadow(0 0 6px #ff2a85) drop-shadow(0 0 11px #facc15);
-    animation: neonSpiroSpinCW 1.5s linear infinite;
-}
-.token-spot.six-ready-spot::after {
-    inset: -20%;
-    background: repeating-conic-gradient(
-        from 15deg,
-        rgba(0, 242, 254, 0.92) 0deg 7deg,
-        rgba(255, 117, 140, 0.95) 7deg 13deg,
-        transparent 13deg 24deg
-    );
-    -webkit-mask: radial-gradient(circle, transparent 36%, #000 44% 64%, transparent 70%);
-    mask: radial-gradient(circle, transparent 36%, #000 44% 64%, transparent 70%);
-    filter: drop-shadow(0 0 5px #00f2fe);
-    animation: neonSpiroSpinCCW 1.15s linear infinite;
-}
-@keyframes neonSpiroSpinCW {
-    0% { transform: perspective(160px) rotateX(22deg) rotateZ(0deg) scale(0.96); }
-    50% { transform: perspective(160px) rotateX(-18deg) rotateZ(180deg) scale(1.08); }
-    100% { transform: perspective(160px) rotateX(22deg) rotateZ(360deg) scale(0.96); }
-}
-@keyframes neonSpiroSpinCCW {
-    0% { transform: perspective(160px) rotateY(22deg) rotateZ(360deg) scale(1.04); }
-    50% { transform: perspective(160px) rotateY(-18deg) rotateZ(180deg) scale(0.94); }
-    100% { transform: perspective(160px) rotateY(22deg) rotateZ(0deg) scale(1.04); }
-}
-.radial-six-spin-ring {
-    transform-origin: center;
-    transform-box: fill-box;
-    animation: radialSpiroSpin 1.4s linear infinite;
-}
-@keyframes radialSpiroSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
 
 .lk-pin-token {
     width: 86%; height: 150%; flex: none; position: relative; z-index: 2;
@@ -1046,7 +981,7 @@ html, body {
 .home-footer { text-align: center; padding: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; width: 100%; flex-shrink: 0; }
 .dev-signature { background: linear-gradient(90deg, #00f2fe, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
 
-.home-load-button { width: auto; min-width: 190px; margin: 0 auto 12px; padding: 9px 16px; border-color: #facc15; background: linear-gradient(135deg, #123d76, #0b1c36); }
+.home-load-button { width: auto; min-width: 190px; margin: 0 auto 12px; padding: 9px 16px; border-color: #facc15; background: linear-gradient(123deg, #123d76, #0b1c36); }
 .saved-games-modal { max-height: min(86dvh, 680px); overflow: hidden; display: flex; flex-direction: column; }
 .saved-games-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding: 2px; max-height: 300px; }
 .saved-game-row { display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid rgba(255,255,255,.16); border-radius: 11px; background: linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.025)); }
@@ -1077,4 +1012,329 @@ html, body {
     .saved-game-row { flex-wrap: wrap; }
     .saved-game-info { flex-basis: 100%; }
     .ludo-winner-banner { width: min(94%, 390px); padding: 12px 14px; gap: 4px; }
+}
+/* 6 PORLE PURO GHOR (HOME BASE) 3D NEON GLOW EFFECT */
+.board-home-base.base-six-neon {
+    position: relative;
+    z-index: 12;
+    border: 3px solid #ffffff !important;
+    box-shadow: 
+        0 0 22px #00f2fe,
+        0 0 42px #00f2fe,
+        inset 0 0 24px rgba(255, 255, 255, 0.95) !important;
+    animation: baseNeon3DPulse 0.55s ease-in-out infinite alternate;
+}
+
+.board-home-base.base-six-neon .home-inner-box {
+    box-shadow: 
+        inset 0 0 20px #00f2fe, 
+        0 0 18px rgba(0, 242, 254, 0.9) !important;
+    border: 2.5px solid #00f2fe;
+}
+
+@keyframes baseNeon3DPulse {
+    0% {
+        transform: scale(1) translateZ(0);
+        filter: brightness(1.08);
+    }
+    100% {
+        transform: scale(1.035) translateZ(12px);
+        filter: brightness(1.38) drop-shadow(0 8px 18px rgba(0, 242, 254, 0.85));
+    }
+}
+
+/* LUDO KING STYLE BOLD, BIG & BOUNCING HIGHLIGHTED TOKENS */
+.lk-pin-token.legal-move {
+    cursor: pointer !important;
+    z-index: 25 !important;
+    transform-origin: bottom center;
+    filter: 
+        drop-shadow(0 0 3px #ffffff)
+        drop-shadow(0 0 4px #ffffff)
+        drop-shadow(0 0 12px #facc15)
+        drop-shadow(0 6px 8px rgba(0, 0, 0, 0.75)) !important;
+    animation: ludoKingBoldToken 0.5s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate !important;
+}
+
+.token-spot > .lk-pin-token.legal-move {
+    width: 96% !important;
+    height: 148% !important;
+}
+
+@keyframes ludoKingBoldToken {
+    0% {
+        transform: translateY(0) scale(1.12);
+    }
+    100% {
+        transform: translateY(-8px) scale(1.34);
+    }
+}
+
+/* Token spot ring highlight when token inside can move */
+.token-spot:has(> .lk-pin-token.legal-move) {
+    border: 2.5px solid #facc15 !important;
+    box-shadow: 0 0 15px #facc15, inset 0 0 10px #ffffff !important;
+    animation: spotRingPulse 0.55s ease-in-out infinite alternate;
+}
+
+@keyframes spotRingPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.12); }
+}
+/* =========================================================
+   NEW FEATURES: CLUTCH CARD, BOUNTY HUNT & SOUND TAUNT PACKS
+   ========================================================= */
+
+/* =========================================================
+   UPDATED: ONLINE STICKERS ON PROFILE, BOUNTY & CLUTCH CARD
+   ========================================================= */
+
+/* Hide timer ring completely in both Offline & Online matches */
+.lk-timer-ring {
+    display: none !important;
+}
+
+/* 1. BOUNTY HUNT CROWN BADGE */
+.bounty-crown-badge {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ef4444 0%, #f59e0b 55%, #fde047 100%);
+    color: #ffffff;
+    font-size: 7.5px;
+    font-weight: 1000;
+    letter-spacing: 0.04em;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 0 12px #ef4444, 0 3px 6px rgba(0,0,0,0.6);
+    white-space: nowrap;
+    animation: bountyCrownPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes bountyCrownPulse {
+    from { transform: translateX(-50%) translateY(0) scale(0.96); filter: drop-shadow(0 0 4px #f59e0b); }
+    to { transform: translateX(-50%) translateY(-3px) scale(1.08); filter: drop-shadow(0 0 10px #ef4444); }
+}
+
+.bounty-points-pill {
+    display: inline-block;
+    margin-left: 3px;
+    padding: 1px 4px;
+    border-radius: 5px;
+    background: rgba(250, 204, 21, 0.22);
+    border: 1px solid #facc15;
+    color: #fde047;
+    font-size: 7px;
+    font-weight: 900;
+}
+
+/* 2. CLUTCH MOMENT SHOWCASE & DOWNLOAD BUTTON */
+.ludo-clutch-card {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(127, 0, 255, 0.35), rgba(0, 242, 254, 0.2));
+    border: 1.5px solid #00f2fe;
+    box-shadow: 0 0 18px rgba(0, 242, 254, 0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: auto;
+}
+
+.ludo-clutch-card small {
+    color: #00f2fe !important;
+    font-size: 9px !important;
+    font-weight: 900;
+    letter-spacing: 0.14em !important;
+}
+
+.ludo-clutch-card strong {
+    color: #ffffff !important;
+    font-size: 13px !important;
+    letter-spacing: 0.02em !important;
+    text-shadow: none !important;
+}
+
+.ludo-clutch-card p {
+    color: #e2e8f0;
+    font-size: 11px;
+    line-height: 1.35;
+    margin: 0;
+}
+
+.clutch-download-btn {
+    margin-top: 6px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1.5px solid #fff2a6;
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 50%, #7f00ff 100%);
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 4px 0 #1e1b4b, 0 6px 14px rgba(0, 242, 254, 0.4);
+    transition: transform 0.15s ease;
+    pointer-events: auto;
+}
+
+.clutch-download-btn:hover { transform: translateY(-2px); }
+.clutch-download-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1e1b4b; }
+
+/* 3. ONLINE-ONLY STICKER DOCK (ICON ONLY, NO TEXT) */
+.lk-taunt-dock {
+    position: fixed;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 86;
+    display: none; /* Shown only in Online Match via JS */
+    gap: 6px;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(30, 27, 75, 0.94));
+    border: 2px solid #facc15;
+    padding: 6px 9px;
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.75), 0 0 14px rgba(250, 204, 21, 0.35);
+}
+
+.lk-taunt-btn {
+    width: 38px;
+    height: 38px;
+    border: 1.5px solid rgba(255,255,255,0.28);
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.22), rgba(255,255,255,0.05));
+    border-radius: 50%;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.15s, box-shadow 0.15s;
+    padding: 0;
+}
+
+.lk-taunt-btn:hover {
+    transform: translateY(-3px) scale(1.16);
+    border-color: #00f2fe;
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.6);
+}
+
+.lk-taunt-btn:active {
+    transform: scale(0.9);
+}
+
+/* BIG STICKER POPUP BESIDE PLAYER PROFILE BADGE */
+.profile-sticker-pop {
+    position: absolute;
+    top: 50%;
+    z-index: 99;
+    font-size: 46px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.75)) drop-shadow(0 0 14px rgba(250, 204, 21, 0.85));
+    animation: profileStickerBounce 1.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.lk-player-badge:not(.right-side) .profile-sticker-pop {
+    right: -54px;
+}
+
+.lk-player-badge.right-side .profile-sticker-pop {
+    left: -54px;
+}
+
+@keyframes profileStickerBounce {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2) rotate(-20deg); }
+    18%  { opacity: 1; transform: translateY(-50%) scale(1.35) rotate(12deg); }
+    34%  { opacity: 1; transform: translateY(-50%) scale(1.05) rotate(-8deg); }
+    50%  { opacity: 1; transform: translateY(-50%) scale(1.22) rotate(6deg); }
+    70%  { opacity: 1; transform: translateY(-50%) scale(1.1) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-75%) scale(0.5); }
+}
+/* =========================================================
+   DUMMY COIN TOP PILL & NEON 3D ADMIN POPUPS
+   ========================================================= */
+
+/* Top Bar Coin Pill */
+.top-coin-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.25), rgba(217, 119, 6, 0.15));
+    border: 1px solid rgba(250, 204, 21, 0.6);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #fde047;
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.25);
+}
+
+/* Admin Hub Menu Buttons (Neon 3D Style) */
+.admin-hub-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 10px;
+}
+
+.admin-hub-card {
+    background: linear-gradient(145deg, rgba(0, 242, 254, 0.12), rgba(127, 0, 255, 0.12));
+    border: 2px solid rgba(0, 242, 254, 0.45);
+    border-radius: 20px;
+    padding: 16px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.4), 0 0 20px rgba(0, 242, 254, 0.2);
+    transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-hub-card:hover {
+    transform: translateY(-3px);
+    border-color: #00f2fe;
+    box-shadow: 0 10px 0 rgba(0,0,0,0.45), 0 0 28px rgba(0, 242, 254, 0.45);
+}
+
+.admin-hub-card span {
+    font-size: 32px;
+}
+
+.admin-hub-card div strong {
+    display: block;
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.admin-hub-card div small {
+    color: #cbd5e1;
+    font-size: 11.5px;
+}
+
+/* Neon 3D Popup Modals */
+.neon-3d-modal {
+    background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 50%, #3b0764 100%) !important;
+    border: 2.5px solid #00f2fe !important;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.9), 0 0 45px rgba(0, 242, 254, 0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+    animation: neonModalZoom 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes neonModalZoom {
+    from { opacity: 0; transform: scale(0.88); }
+    to { opacity: 1; transform: scale(1); }
 }
