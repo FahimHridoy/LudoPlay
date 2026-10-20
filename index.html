@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LudoPlay - Premium Board Game</title>
+    <meta name="theme-color" content="#112240">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="LudoPlay">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="style.css?v=20261020v2">
+</head>
+<body>
+
+    <div id="weatherCanvas">
+        <div class="summer-sun-wrap">
+            <div class="sun-rays"></div>
+            <div class="sun-core"></div>
+        </div>
+        <div id="particleContainer"></div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div class="game-toast" id="gameToast"></div>
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="online-badge">
+            <span class="pulse-dot"></span>
+            <span id="onlineCount">Online —</span>
+        </div>
+        <div class="top-actions">
+            <button class="icon-btn install-app-btn" id="installAppBtn" onclick="installLudoPlay()" type="button">⬇️ Add to Home</button>
+            <button class="icon-btn" id="topReportBtn" onclick="openReportModal()" type="button">🐞 Report</button>
+            <button class="icon-btn admin-quick-btn" id="adminPanelBtn" onclick="openAdminModal()">👑 Admin Panel</button>
+            <button class="icon-btn" id="profileBtn" onclick="openMyProfile()">👦 Login</button>
+        </div>
+    </div>
+
+    <!-- NOTICE BAR -->
+    <div class="notice-pill" id="noticeBar">
+        <span class="notice-text" id="noticeText">📢 Welcome to LudoPlay! Official Tournament coming soon.</span>
+        <button class="notice-close" onclick="dismissNotice()" aria-label="Dismiss notice">×</button>
+    </div>
+
+    <!-- MAIN HOME INTERFACE -->
+    <div class="main-container" id="homeMainContainer">
+        <h1 class="game-title">LudoPlay</h1>
+        <p class="subtitle" id="homeSubtitleText">Select Your 3D Arena</p>
+        <button class="secondary-btn home-load-button" id="loadGameHomeBtn" type="button" onclick="openSavedGamesModal()" style="display:none">📂 Load Saved Game</button>
+
+        <div class="arena-grid">
+            <div class="mode-card-3d" onclick="openFullScreenSetup('ludo')">
+                <div class="card-icon">🎲</div>
+                <div class="card-title" id="cardTitleLudo">Classic Ludo</div>
+                <div class="card-desc" id="cardDescLudo">Individual, Team Up, Challenge, Smart AI, Online & Tournaments</div>
+            </div>
+
+            <div class="mode-card-3d" onclick="openFullScreenSetup('snake')">
+                <div class="card-icon">🐍</div>
+                <div class="card-title" id="cardTitleSnake">Snake & Ladders</div>
+                <div class="card-desc" id="cardDescSnake">Max 4-Player Pass & Play and Smart AI Board</div>
+            </div>
+        </div>
+
+        <!-- LUDO KING STYLE BOTTOM DOCK MENU -->
+        <div class="lk-bottom-dock">
+            <button class="lk-dock-btn" type="button" onclick="openInventoryModal()">
+                <span class="lk-dock-icon">🎒</span>
+                <span class="lk-dock-label" id="navLabelInventory">Inventory</span>
+            </button>
+            <button class="lk-dock-btn" type="button" onclick="openFriendsModal()">
+                <span class="lk-dock-icon">👥</span>
+                <span class="lk-dock-label" id="navLabelFriends">Friends</span>
+                <span class="lk-dock-badge" id="friendReqBadge" style="display:none">0</span>
+            </button>
+            <button class="lk-dock-btn" type="button" onclick="openSettingsModal()">
+                <span class="lk-dock-icon">⚙️</span>
+                <span class="lk-dock-label" id="navLabelSettings">Settings</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- FULL SCREEN SETUP INTERFACE -->
+    <div class="full-screen-view" id="fullScreenSetupView">
+        <div class="fs-header">
+            <span class="fs-title" id="fsSetupTitle">🎮 Game Setup</span>
+            <button class="back-btn" onclick="closeFullScreenSetup()">← Back Home</button>
+        </div>
+
+        <div class="fs-content-wrap">
+            <div class="section-box">
+                <div class="section-label">Choose Play Mode</div>
+                <div class="modes-grid-3d" id="fsModesGrid"></div>
+            </div>
+
+            <div class="section-box" id="dynamicConfigBox">
+                <div id="passRuleRow" style="display: none; margin-bottom: 18px;">
+                    <div class="section-label">Select Pass & Play Rule</div>
+                    <div class="players-flex-box">
+                        <div class="player-slot-btn active" id="passRuleNormalBtn" onclick="selectPassPlayRule('normal')">🎯 Normal Match</div>
+                        <div class="player-slot-btn" id="passRuleQuickBtn" onclick="selectPassPlayRule('quick')">⚡ Quick Match (1 Kill to Open Home)</div>
+                    </div>
+                </div>
+
+                <div class="section-label" id="configSectionTitle">Select Options</div>
+                
+                <div class="players-flex-box" id="playerOptions" style="display: none;">
+                    <div class="player-slot-btn active" onclick="setPlayerCount(2)">2 Players</div>
+                    <div class="player-slot-btn" onclick="setPlayerCount(3)">3 Players</div>
+                    <div class="player-slot-btn" onclick="setPlayerCount(4)">4 Players</div>
+                    <div class="player-slot-btn" id="opt5" onclick="setPlayerCount(5)">5 Players</div>
+                    <div class="player-slot-btn" id="opt6" onclick="setPlayerCount(6)">6 Players</div>
+                </div>
+
+                <div id="tournamentOptions" style="display: none;">
+                    <div class="players-flex-box" id="tourneySlotsGrid">
+                        <div class="player-slot-btn active" onclick="setTourneySlots(4)">4 Slots</div>
+                        <div class="player-slot-btn" onclick="setTourneySlots(8)">8 Slots</div>
+                        <div class="player-slot-btn" onclick="setTourneySlots(16)">16 Slots</div>
+                    </div>
+                    <input type="number" id="adminCustomSlots" class="custom-player-input" placeholder="Admin Custom Slots (max 16)" min="4" max="16" style="display: none;" oninput="handleAdminCustomSlots(this.value)">
+                </div>
+            </div>
+
+            <button class="start-match-btn" onclick="launchGameMatch()">Start Match 🚀</button>
+        </div>
+    </div>
+
+    <!-- FULL SCREEN GAME ARENA -->
+    <div class="game-arena-screen" id="gameArenaScreen">
+        <button class="lk-top-exit" onclick="quitGameMatch()" title="Exit Match">↩</button>
+        <button class="lk-sound-toggle" id="gameSoundToggle" onclick="toggleGameSound()" type="button" aria-label="Mute game and reaction sounds" aria-pressed="true" title="Mute game and reaction sounds">🔊</button>
+        <button class="lk-admin-badge-toggle" id="adminMatchBadgeToggle" onclick="toggleAdminMatchBadge()" type="button" aria-pressed="true" style="display:none">👑 ADMIN ON</button>
+        <div class="online-match-tools" id="onlineMatchTools" style="display:none">
+            <div class="online-match-toolbar">
+                <span class="online-connection-dot" id="onlineConnectionDot"></span>
+                <span class="online-connection-status" id="onlineConnectionStatus">Waiting for connection service</span>
+                <button type="button" class="online-chat-toggle" onclick="toggleOnlineChat()">💬 Chat<span class="online-chat-unread" id="onlineChatUnread" style="display:none"></span></button>
+            </div>
+            <div class="online-spectator-strip" id="onlineSpectatorStrip" style="display:none">
+                <span>👁</span><span id="onlineSpectatorNames"></span>
+            </div>
+            <section class="online-chat-panel" id="onlineChatPanel" aria-label="Online match chat" style="display:none">
+                <div class="online-chat-heading"><strong>Match chat</strong><button type="button" onclick="toggleOnlineChat()" aria-label="Close chat">×</button></div>
+                <div class="online-chat-messages" id="onlineChatMessages" aria-live="polite"></div>
+                <div class="online-chat-reactions" aria-label="Quick reactions">
+                    <button type="button" onclick="sendOnlineReaction('😂','Haha')" aria-label="Haha">😂</button>
+                    <button type="button" onclick="sendOnlineReaction('😡','Angry')" aria-label="Angry">😡</button>
+                    <button type="button" onclick="sendOnlineReaction('😢','Cry')" aria-label="Cry">😢</button>
+                    <button type="button" onclick="sendOnlineReaction('🤣','Funny')" aria-label="Funny">🤣</button>
+                    <button type="button" onclick="sendOnlineReaction('🏆','Champ')" aria-label="Champ">🏆</button>
+                </div>
+                <form class="online-chat-form" onsubmit="sendOnlineChat(event)">
+                    <input id="onlineChatInput" maxlength="240" autocomplete="off" placeholder="Write a message…" aria-label="Write a chat message">
+                    <button type="submit">Send</button>
+                </form>
+            </section>
+        </div>
+        <div class="spectator-request-notice" id="spectatorRequestNotice" style="display:none" role="alertdialog" aria-live="assertive">
+            <div><strong>Spectator request</strong><span id="spectatorRequestName"></span><small>Any one player can accept this request.</small></div>
+            <button type="button" class="spectator-accept-btn" onclick="respondToSpectatorRequest(true)">Accept</button>
+            <button type="button" class="spectator-deny-btn" onclick="respondToSpectatorRequest(false)">Deny</button>
+        </div>
+        <div class="arena-stage" id="arenaStage"></div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- 3D PUBLISHING SOON POPUP (FOR NON-ADMIN ONLINE/TOURNEY CLICK) -->
+    <div class="modal-overlay" id="publishingSoonModal">
+        <div class="modal-box compact-modal publishing-soon-3d-box">
+            <div class="publishing-soon-icon">🚀</div>
+            <h2 class="publishing-soon-title">Publishing Soon!</h2>
+            <p class="publishing-soon-subtitle">Stay with us ✨</p>
+            <p class="profile-help-text" style="text-align:center; margin-top:8px;">
+                Real-time Online Multiplayer & Live Championship Servers are getting ready. Enjoy Smart AI & Pass & Play Offline modes right now!
+            </p>
+            <button class="primary-btn" type="button" onclick="closePublishingSoonModal()">Got It! 🎮</button>
+        </div>
+    </div>
+
+    <!-- 3D ADD TO HOME POPUP -->
+    <div class="modal-overlay" id="installHelpModal">
+        <div class="modal-box compact-modal publishing-soon-3d-box">
+            <div class="modal-header" style="width:100%;">
+                <span class="modal-title">⬇️ Add LudoPlay to Home</span>
+                <button class="notice-close" onclick="closeInstallModal()">×</button>
+            </div>
+            <div class="publishing-soon-icon" style="font-size:54px; margin: 4px 0 10px;">📲</div>
+            <h3 class="publishing-soon-title" style="font-size:22px;">Install LudoPlay 3D App</h3>
+            <p class="profile-help-text" style="text-align:center; margin-top:6px;">
+                Tap the 3D <strong>Add</strong> button below to place LudoPlay directly on your Home Screen for instant full-screen offline & online play!
+            </p>
+            <button class="start-match-btn" type="button" id="confirmInstall3DBtn" onclick="triggerHomeInstallAction()" style="margin-top:10px; padding:14px;">
+                ➕ Add to Home Screen
+            </button>
+            <div id="manualInstallGuideBox" style="display:none; width:100%; text-align:left; margin-top:14px; padding:12px; border-radius:14px; background:rgba(0,0,0,0.35); border:1px solid rgba(0,242,254,0.35);">
+                <p class="profile-help-text" style="margin-bottom:6px; color:#fde68a; font-weight:800;">📌 Quick 1-Tap Browser Action:</p>
+                <ul class="install-steps" style="margin:0 0 0 18px; font-size:12px; line-height:1.7;">
+                    <li><strong>Android / Chrome:</strong> Tap browser menu <strong>⋮</strong> (top-right) → <strong>Add to Home screen / Install app</strong>.</li>
+                    <li><strong>iPhone / Safari:</strong> Tap <strong>Share</strong> icon → <strong>Add to Home Screen</strong>.</li>
+                    <li><strong>Desktop / PC:</strong> Click the <strong>Install ⊕</strong> icon in the address bar.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="onlineMatchPopup">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">🌐 Online Match Modes (Admin Testing)</span>
+                <button class="notice-close" onclick="closeOnlinePopup()">×</button>
+            </div>
+            <div class="popup-grid-3d">
+                <div class="popup-option-card active" id="on_ind" onclick="selectOnlineSubMode('individual')">
+                    <span class="popup-icon">👤</span>
+                    <div class="popup-text"><div class="p-title">Individual Mode</div><div class="p-desc">2, 3, or 4 players online battle</div></div>
+                </div>
+                <div class="popup-option-card" id="on_team" onclick="selectOnlineSubMode('teamup')">
+                    <span class="popup-icon">👥</span>
+                    <div class="popup-text"><div class="p-title">Team Up Mode</div><div class="p-desc">1v1 or 2v2 partner match</div></div>
+                </div>
+                <div class="popup-option-card" id="on_chall" onclick="selectOnlineSubMode('challenge')">
+                    <span class="popup-icon">⚔️</span>
+                    <div class="popup-text"><div class="p-title">Challenge Mode</div><div class="p-desc">Invite friend online</div></div>
+                </div>
+                <div class="popup-option-card" id="on_quick" onclick="selectOnlineSubMode('quick')">
+                    <span class="popup-icon">⚡</span>
+                    <div class="popup-text"><div class="p-title">Quick Match</div><div class="p-desc">No home open until 1 token kill</div></div>
+                </div>
+            </div>
+            <button class="primary-btn" onclick="confirmOnlineMode()">Select Online Mode 🚀</button>
+            <button class="secondary-btn" type="button" onclick="openSpectatorJoinModal()">👁 Request to spectate a match</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="spectatorJoinModal">
+        <div class="modal-box compact-modal">
+            <div class="modal-header"><span class="modal-title">👁 Join as spectator</span><button class="notice-close" onclick="closeSpectatorJoinModal()">×</button></div>
+            <p class="profile-help-text">Enter the room code. Players in that match will see your name and can accept or deny your request.</p>
+            <div class="input-group"><label>Room code</label><input id="spectatorRoomCode" class="input-field" maxlength="32" placeholder="Enter match room code"></div>
+            <div class="input-group"><label>Your display name</label><input id="spectatorDisplayName" class="input-field" maxlength="16" placeholder="Your name"></div>
+            <div class="spectator-request-status" id="spectatorRequestStatus" aria-live="polite"></div>
+            <button class="primary-btn" type="button" onclick="requestSpectatorJoinFromForm()">Send spectator request</button>
+        </div>
+    </div>
+
+    <!-- UPDATED PROFILE MODAL WITH STATS, PHOTO UPLOAD & LOGOUT -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal-box compact-modal profile-modal-box">
+            <div class="modal-header">
+                <span class="modal-title" id="profileModalTitle">🏅 Player profile</span>
+                <button class="notice-close" onclick="closeProfileModal()">×</button>
+            </div>
+            <div class="profile-hero-wrap">
+                <div class="profile-custom-photo" id="profileCustomPicDisplay" style="display:none;"></div>
+                <div class="profile-emoji-avatar" id="profileAvatarText">👦</div>
+                <div class="profile-hero-meta">
+                    <strong id="profileDisplayName">Player</strong>
+                    <small id="profileDisplayPhone">Guest Account</small>
+                </div>
+            </div>
+            <div class="profile-summary" id="profileSummary"></div>
+            <div class="achievement-grid" id="achievementGrid"></div>
+            <div class="profile-storage-meter" id="profileStorageMeter"></div>
+            <div class="profile-action-row" id="profileOwnerActions">
+                <button class="secondary-btn" type="button" id="editProfileButton" onclick="editMyProfile()">✏️ Edit Info</button>
+                <label class="secondary-btn profile-photo-label" id="uploadPicLabel">
+                    📷 Set Photo
+                    <input type="file" id="customAvatarInput" accept="image/*" style="display:none" onchange="uploadCustomAvatar(event)">
+                </label>
+                <button class="secondary-btn" type="button" id="removePicButton" onclick="removeCustomAvatar()" style="display:none">🗑️ Default Icon</button>
+                <button class="secondary-btn logout-danger-btn" type="button" id="logoutButton" onclick="logoutUser()">🚪 Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3D INVENTORY MODAL (DICE, TOKENS, BOARDS) -->
+    <div class="modal-overlay" id="inventoryModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">🎒 3D Premium Inventory (Free)</span>
+                <button class="notice-close" onclick="closeInventoryModal()">×</button>
+            </div>
+            <div class="lk-subtabs">
+                <button type="button" class="lk-subtab active" id="invTabBtn_dice" onclick="switchInventoryTab('dice')">🎲 Dice Skins</button>
+                <button type="button" class="lk-subtab" id="invTabBtn_token" onclick="switchInventoryTab('token')">📌 Token Shapes & Color</button>
+                <button type="button" class="lk-subtab" id="invTabBtn_board" onclick="switchInventoryTab('board')">🗺️ Board Themes</button>
+            </div>
+            <div id="invPanel_dice" class="inv-panel-section">
+                <p class="profile-help-text">Select your 3D dice skin for offline & online matches (100% Free):</p>
+                <div class="inv-cards-grid" id="invDiceGrid"></div>
+            </div>
+            <div id="invPanel_token" class="inv-panel-section" style="display:none">
+                <p class="profile-help-text">Choose your token shape & preferred color:</p>
+                <div class="inv-cards-grid" id="invTokenShapeGrid"></div>
+                <div class="section-label" style="margin-top:14px; margin-bottom:8px;">Preferred Token Color</div>
+                <div class="inv-color-row" id="invTokenColorGrid"></div>
+            </div>
+            <div id="invPanel_board" class="inv-panel-section" style="display:none">
+                <p class="profile-help-text">All board themes keep exact cell numbers and safe stars intact:</p>
+                <div class="inv-cards-grid" id="invBoardGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3D FRIENDS MODAL (SEARCH BY PHONE, REQUESTS, INVITE, UNFRIEND) -->
+    <div class="modal-overlay" id="friendsModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">👥 Friends & Online Invite</span>
+                <button class="notice-close" onclick="closeFriendsModal()">×</button>
+            </div>
+            <div class="lk-subtabs">
+                <button type="button" class="lk-subtab active" id="frTabBtn_list" onclick="switchFriendsTab('list')">🤝 My Friends</button>
+                <button type="button" class="lk-subtab" id="frTabBtn_requests" onclick="switchFriendsTab('requests')">📩 Requests <span id="frTabBadge" class="inline-count-pill">0</span></button>
+                <button type="button" class="lk-subtab" id="frTabBtn_search" onclick="switchFriendsTab('search')">🔍 Add by Phone</button>
+            </div>
+            <div id="frPanel_list" class="inv-panel-section">
+                <div class="saved-games-list" id="myFriendsListBox"></div>
+            </div>
+            <div id="frPanel_requests" class="inv-panel-section" style="display:none">
+                <div class="saved-games-list" id="incomingRequestsBox"></div>
+            </div>
+            <div id="frPanel_search" class="inv-panel-section" style="display:none">
+                <p class="profile-help-text">Enter your friend's registered phone number to send a friend request:</p>
+                <div class="friend-search-bar">
+                    <input type="tel" id="friendSearchPhoneInput" class="input-field" placeholder="e.g. 017XXXXXXXX">
+                    <button type="button" class="primary-btn" style="width:auto; margin:0; padding:0 18px;" onclick="searchFriendByPhone()">Search</button>
+                </div>
+                <div class="saved-games-list" id="friendSearchResultsBox" style="margin-top:12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3D SETTINGS MODAL (SOUND, LANGUAGE, THEME, SHARE, 3-STAR RATING) -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-box compact-modal">
+            <div class="modal-header">
+                <span class="modal-title">⚙️ Game Settings</span>
+                <button class="notice-close" onclick="closeSettingsModal()">×</button>
+            </div>
+            <div class="settings-list-3d">
+                <div class="setting-card-3d">
+                    <div>
+                        <strong>🔊 Game & Reaction Sound</strong>
+                        <small>Dice roll, token step & emoji sounds</small>
+                    </div>
+                    <button type="button" class="choice-btn active" id="settingsSoundBtn" onclick="toggleSoundFromSettings()">ON</button>
+                </div>
+
+                <div class="setting-card-3d">
+                    <div>
+                        <strong>🌐 Language / ভাষা</strong>
+                        <small>Switch interface language</small>
+                    </div>
+                    <div class="mini-pill-group">
+                        <button type="button" class="choice-btn active" id="langBtnEn" onclick="setGameLanguage('en')">English</button>
+                        <button type="button" class="choice-btn" id="langBtnBn" onclick="setGameLanguage('bn')">বাংলা</button>
+                    </div>
+                </div>
+
+                <div class="setting-card-3d">
+                    <div>
+                        <strong>🎨 Interface Theme</strong>
+                        <small>Weather themes are reserved for Admin</small>
+                    </div>
+                    <div class="mini-pill-group">
+                        <button type="button" class="choice-btn active" id="userThemeDefaultBtn" onclick="setUserInterfaceTheme('default')">✨ Default</button>
+                        <button type="button" class="choice-btn" id="userThemeRoyalBtn" onclick="setUserInterfaceTheme('royal')">🌌 Royal</button>
+                    </div>
+                </div>
+
+                <div class="setting-card-3d">
+                    <div>
+                        <strong>🔗 Share This Game</strong>
+                        <small>Copy game link & invite friends</small>
+                    </div>
+                    <button type="button" class="choice-btn active" onclick="shareGameLink()">📤 Copy Link</button>
+                </div>
+
+                <div class="setting-card-3d rating-card-3d">
+                    <div>
+                        <strong>⭐ Rate LudoPlay (Max 3 Stars)</strong>
+                        <small id="userRatingStatusText">Tap a 3D star below to submit your rating</small>
+                    </div>
+                    <div class="three-star-box" id="threeStarBox">
+                        <button type="button" class="star-3d-btn" data-star="1" onclick="submitGameRating(1)">⭐</button>
+                        <button type="button" class="star-3d-btn" data-star="2" onclick="submitGameRating(2)">⭐</button>
+                        <button type="button" class="star-3d-btn" data-star="3" onclick="submitGameRating(3)">⭐</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REPORT & SUGGESTION MODAL (DIRECT TO kishore.club.85@gmail.com) -->
+    <div class="modal-overlay" id="reportModal">
+        <div class="modal-box compact-modal">
+            <div class="modal-header">
+                <span class="modal-title">🐞 Report & Suggestion</span>
+                <button class="notice-close" onclick="closeReportModal()">×</button>
+            </div>
+            <p class="profile-help-text">Write your suggestion or report an issue. Submitting will send it directly to Admin (kishore.club.85@gmail.com).</p>
+            <div class="input-group">
+                <label>Your Name</label>
+                <input type="text" id="reportUserName" class="input-field" placeholder="Enter your name" maxlength="32">
+            </div>
+            <div class="input-group">
+                <label>Write your suggestion</label>
+                <textarea id="reportUserMessage" class="input-field" rows="4" placeholder="Write your suggestion or issue details here..." style="resize:none"></textarea>
+            </div>
+            <button class="primary-btn" type="button" onclick="submitUserReportToGmail()">📨 Submit Suggestion</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="passPlayPopup">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">👥 Pass & Play Modes</span>
+                <button class="notice-close" onclick="closePassPlayPopup()">×</button>
+            </div>
+            <div class="popup-grid-3d">
+                <div class="popup-option-card active" id="pp_normal" onclick="selectPassPlaySubMode('normal')">
+                    <span class="popup-icon">🎯</span>
+                    <div class="popup-text"><div class="p-title">Normal Match</div><div class="p-desc">Standard local rules</div></div>
+                </div>
+                <div class="popup-option-card" id="pp_quick" onclick="selectPassPlaySubMode('quick')">
+                    <span class="popup-icon">⚡</span>
+                    <div class="popup-text"><div class="p-title">Quick Match</div><div class="p-desc">Home locked until 1 token kill</div></div>
+                </div>
+            </div>
+            <button class="primary-btn" onclick="confirmPassPlayMode()">Select Rule 🚀</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">👤 Player Profile & Login</span>
+                <button class="notice-close" onclick="closeLoginModal()">×</button>
+            </div>
+            <div class="error-msg" id="loginError"></div>
+            <div class="input-group">
+                <label>Phone Number</label>
+                <input type="tel" id="userPhone" class="input-field" placeholder="017XXXXXXXX">
+            </div>
+            <div class="input-group">
+                <label>Name</label>
+                <input type="text" id="userName" class="input-field" placeholder="Enter name" maxlength="16">
+            </div>
+            <div class="input-group">
+                <label>Select Avatar</label>
+                <div class="avatar-row">
+                    <div class="choice-btn active" id="avMale" onclick="selectAvatar('male')">👦 Male</div>
+                    <div class="choice-btn" id="avFemale" onclick="selectAvatar('female')">👧 Female</div>
+                </div>
+            </div>
+            <div class="input-group" id="adminPassGroup" style="display: none;">
+                <label>Password</label>
+                <input type="password" id="adminPass" class="input-field" placeholder="Enter password">
+            </div>
+            <button class="primary-btn" onclick="saveProfileAndLogin()">Save & Continue</button>
+            <div class="admin-bottom-wrap">
+                <span class="admin-toggle-link" onclick="toggleAdminPassField()">Admin</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="savedGamesModal">
+        <div class="modal-box compact-modal saved-games-modal">
+            <div class="modal-header"><span class="modal-title">📂 Load Saved Game</span><button class="notice-close" onclick="closeSavedGamesModal()">×</button></div>
+            <p class="profile-help-text">Offline matches auto-save after each completed move. Choose a saved date to continue.</p>
+            <div class="saved-games-list" id="savedGamesList"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="adminModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">👑 Admin Global Controls</span>
+                <button class="notice-close" onclick="closeAdminModal()">×</button>
+            </div>
+            <div class="input-group">
+                <label>🌦️ Admin Theme</label>
+                <p class="profile-help-text">Only your admin profile sees these 3 weather themes. Users can reset to default from Settings.</p>
+                <div class="theme-grid">
+                    <div class="choice-btn" id="th_default" onclick="setGlobalTheme('default')">✨ Default</div>
+                    <div class="choice-btn" id="th_winter" onclick="setGlobalTheme('winter')">❄️ Winter</div>
+                    <div class="choice-btn" id="th_spring" onclick="setGlobalTheme('spring')">🌸 Spring</div>
+                    <div class="choice-btn" id="th_summer" onclick="setGlobalTheme('summer')">☀️ Summer</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>📢 Update Live Notice Bar</label>
+                <input type="text" id="adminNoticeInput" class="input-field" placeholder="Write announcement (leave empty to clear)">
+            </div>
+            <div class="input-group">
+                <label>⭐ Game Ratings Overview (3-Star Scale)</label>
+                <div class="admin-traffic-grid">
+                    <div><small>Total Rated Users</small><strong id="adminTotalRatingUsers">0</strong></div>
+                    <div><small>Average Rating</small><strong id="adminAvgRatingValue">0.0 / 3 ⭐</strong></div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>📋 Registered Players Database (<span id="totalRegCount">0</span>)</label>
+                <input type="search" id="adminPlayerSearch" class="input-field" placeholder="Search name or phone" oninput="renderRegisteredPlayersForAdmin()" autocomplete="off">
+                <small class="profile-help-text" id="adminPlayersHint">Registered players are stored on this device.</small>
+                <div class="player-list-box" id="registeredPlayersList"></div>
+            </div>
+            <div class="input-group">
+                <label>📊 Website Traffic</label>
+                <div class="admin-traffic-grid">
+                    <div><small>Live users</small><strong id="adminLiveUsers">—</strong></div>
+                    <div><small>Total visits</small><strong id="adminTotalVisits">—</strong></div>
+                </div>
+                <small class="profile-help-text" id="adminTrafficUpdated">Analytics service is not connected yet.</small>
+            </div>
+            <button class="primary-btn" onclick="saveAdminSettings()">Apply Global Changes</button>
+        </div>
+    </div>
+
+    <footer class="home-footer">
+        <span class="dev-signature" id="devFooter" onclick="triggerAdminTap()">©Developed by Fahim Hridoy</span>
+    </footer>
+
+    <script src="app.js?v=20261020v2"></script>
+    <script src="ludo.js?v=20261020v2"></script>
+    <script src="snake.js?v=20261020v2"></script>
+</body>
+</html>
