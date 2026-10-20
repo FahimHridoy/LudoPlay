@@ -2245,3 +2245,178 @@ window.injectCleanAdminHubUI = function() {
         </div>
     `);
 };
+
+/* =====================================================================
+   FIREBASE REALTIME GLOBAL SYNC: NOTICE, WEATHER & TRAFFIC
+   ===================================================================== */
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDPhuDKjXrta1izBBWC_gAkPtpm9jQkg-M",
+    authDomain: "ludoplayglobal.firebaseapp.com",
+    projectId: "ludoplayglobal",
+    storageBucket: "ludoplayglobal.firebasestorage.app",
+    messagingSenderId: "1082667626449",
+    appId: "1:1082667626449:web:87e3d57b73e35d22b5faf0",
+    measurementId: "G-BP81CD66F5"
+};
+
+let globalFirebaseApp = null;
+let globalDb = null;
+
+if (typeof firebase !== 'undefined') {
+    if (!firebase.apps.length) {
+        globalFirebaseApp = firebase.initializeApp(firebaseConfig);
+    } else {
+        globalFirebaseApp = firebase.app();
+    }
+    globalDb = firebase.database();
+}
+
+// 1. Global Notice Sync
+if (globalDb) {
+    globalDb.ref('settings/globalNotice').on('value', (snapshot) => {
+        const remoteNotice = snapshot.val();
+        if (remoteNotice) {
+            try {
+                localStorage.setItem('ludoplay.live.notice', remoteNotice);
+                localStorage.setItem('ludoplay.notice', remoteNotice);
+                localStorage.setItem('adminNotice', remoteNotice);
+            } catch (_) {}
+            const noticeTextEl = document.getElementById('noticeText');
+            const noticeBarEl = document.getElementById('noticeBar');
+            if (noticeTextEl) noticeTextEl.textContent = remoteNotice.startsWith('📢') ? remoteNotice : `📢 ${remoteNotice}`;
+            if (noticeBarEl && noticeBarEl.style.display === 'none' && !noticeBarEl.classList.contains('is-dismissing')) {
+                noticeBarEl.style.display = 'flex';
+            }
+        }
+    });
+
+    // 2. Global Weather Theme Sync (Admin to Users)
+    globalDb.ref('settings/globalTheme').on('value', (snapshot) => {
+        const remoteTheme = snapshot.val();
+        if (remoteTheme && ['default', 'winter', 'spring', 'summer'].includes(remoteTheme)) {
+            try { localStorage.setItem('ludoGlobalTheme', remoteTheme); } catch (_) {}
+            if (typeof applyThemeVisuals === 'function') {
+                applyThemeVisuals(remoteTheme);
+            }
+        }
+    });
+}
+
+// Override setGlobalTheme to push theme globally to Firebase!
+const _origSetGlobalTheme = window.setGlobalTheme || function(){};
+window.setGlobalTheme = function(themeId) {
+    const res = _origSetGlobalTheme.apply(this, arguments);
+    if (res !== false && globalDb) {
+        globalDb.ref('settings/globalTheme').set(themeId).then(() => {
+            if (typeof showGameToast === 'function') {
+                showGameToast('🌦️ Weather theme updated globally for all users!');
+            }
+        });
+    }
+    return res;
+};
+
+// Override executeNeonNoticeUpdate to push notice globally
+const _origExecuteNeonNoticeUpdate2 = window.executeNeonNoticeUpdate || function(){};
+window.executeNeonNoticeUpdate = function() {
+    const val = document.getElementById('neonNoticeInputBox')?.value.trim() || '';
+    const finalVal = val || 'Only offline match available! Please login first and enjoy the game.';
+    
+    if (globalDb) {
+        globalDb.ref('settings/globalNotice').set(finalVal).then(() => {
+            if (typeof showGameToast === 'function') {
+                showGameToast('📢 Notice broadcasted globally via Firebase!');
+            }
+        });
+    }
+
+    if (typeof _origExecuteNeonNoticeUpdate2 === 'function') {
+        _origExecuteNeonNoticeUpdate2.apply(this, arguments);
+    }
+};
+
+// 3. Realtime Visitor Traffic & Active Users Tracker
+function initRealtimeTrafficTracker() {
+    if (!globalDb) return;
+
+    const visitorRef = globalDb.ref('analytics/totalVisits');
+    visitorRef.transaction((currentVal) => {
+        return (currentVal || 0) + 1;
+    });
+
+    const activeRef = globalDb.ref('analytics/activeUsers');
+    const myConnectionRef = globalDb.ref('analytics/activeUsers/' + Math.random().toString(36).substr(2, 9));
+    
+    myConnectionRef.set(true);
+    myConnectionRef.onDisconnect().remove();
+
+    visitorRef.on('value', (snapshot) => {
+        const total = snapshot.val() || 0;
+        // Update both Admin Modal & Game Hub elements
+        ['totalVisitsVal', 'adminTotalVisits'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = total.toLocaleString();
+        });
+    });
+
+    activeRef.on('value', (snapshot) => {
+        const activeObj = snapshot.val() || {};
+        const activeCount = Object.keys(activeObj).length;
+        ['activeUsersVal', 'adminLiveUsers'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = activeCount.toLocaleString();
+        });
+        const updatedEl = document.getElementById('adminTrafficUpdated');
+        if (updatedEl) updatedEl.textContent = `Updated live via Firebase (${new Date().toLocaleTimeString()})`;
+    });
+}
+
+setTimeout(initRealtimeTrafficTracker, 1200);
+
+window.injectCleanAdminHubUI = function() {
+    const adminModalBox = document.querySelector('#adminModal .modal-box');
+    if (!adminModalBox) return;
+
+    const regPlayersGroup = document.getElementById('registeredPlayersList')?.closest('.input-group');
+    if (regPlayersGroup) regPlayersGroup.style.display = 'none';
+    const noticeGroup = document.getElementById('adminNoticeInput')?.closest('.input-group');
+    if (noticeGroup) noticeGroup.style.display = 'none';
+    const oldGiftSec = document.getElementById('adminCoinGiftSection');
+    if (oldGiftSec) oldGiftSec.style.display = 'none';
+
+    if (document.getElementById('adminHubHubMenu')) return;
+
+    adminModalBox.insertAdjacentHTML('beforeend', `
+        <div id="adminHubHubMenu" class="admin-hub-grid" style="margin-top: 14px; margin-bottom: 12px;">
+            <div class="admin-hub-card" onclick="openAdminGiftModal()">
+                <span>🎁</span>
+                <div>
+                    <strong>Gift Coins Panel</strong>
+                    <small>Send dummy coins to registered players by phone</small>
+                </div>
+            </div>
+            <div class="admin-hub-card" onclick="openAdminPlayersModal()">
+                <span>📋</span>
+                <div>
+                    <strong>Registered Players Database</strong>
+                    <small>View and search all user accounts</small>
+                </div>
+            </div>
+            <div class="admin-hub-card" onclick="openAdminNoticeModal()">
+                <span>📢</span>
+                <div>
+                    <strong>Update Live Notice Bar</strong>
+                    <small>Broadcast running announcements to all users</small>
+                </div>
+            </div>
+        </div>
+        <div class="admin-traffic-card" style="background: rgba(15,23,42,0.8); padding: 14px; border-radius: 12px; margin-top: 12px; border: 1px solid rgba(0,242,254,0.4);">
+            <div style="font-size: 13px; font-weight: 800; color: #00f2fe; margin-bottom: 8px;">📊 LIVE TRAFFIC ANALYTICS</div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; color: #fff;">
+                <span>🟢 Active Users: <strong id="activeUsersVal" style="color: #22c55e;">0</strong></span>
+                <span>👥 Total Visits: <strong id="totalVisitsVal" style="color: #fde047;">0</strong></span>
+            </div>
+        </div>
+    `);
+};
