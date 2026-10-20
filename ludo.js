@@ -23,13 +23,16 @@ let snakeVisualMotion = null;
 let liveGreatPlayerIndex = -1;
 let liveGreatPlayerUntil = 0;
 let liveGreatPlayerTimer = null;
+let liveGreatPlayerInterval = null;
+let activeCaptureNeonCellKey = null;
+let activeCaptureNeonRadialPoint = null;
+let winnerBannerDismissed = false;
+let fireworksRafId = null;
 
-// TURN TIMER VARIABLES (DISABLED FOR BOTH ONLINE & OFFLINE)
 let turnTimerInterval = null;
 let turnTimeRemaining = 15000;
 const MAX_TURN_TIME = 15000;
 
-// AUDIO SETUP
 let gameAudioContext = null;
 let gameAudioCompressor = null;
 let gameSoundEnabled = true;
@@ -115,6 +118,44 @@ function playGameNoise(context, duration, volume, filterType, frequency, delay =
     source.stop(start + duration + 0.02);
 }
 
+function playTokenSlideReturnSound(durationSec = 0.42) {
+    const context = getGameAudioContext();
+    if (!context) return;
+    const dur = Math.max(0.22, Math.min(0.95, durationSec));
+    const frameCount = Math.max(1, Math.ceil(context.sampleRate * dur));
+    const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+        const t = i / frameCount;
+        const env = Math.sin(Math.PI * t);
+        samples[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    const noiseSource = context.createBufferSource();
+    const bandpass = context.createBiquadFilter();
+    const gainNode = context.createGain();
+    const now = context.currentTime;
+
+    noiseSource.buffer = buffer;
+    bandpass.type = 'bandpass';
+    bandpass.Q.setValueAtTime(3.6, now);
+    bandpass.frequency.setValueAtTime(2400, now);
+    bandpass.frequency.exponentialRampToValueAtTime(620, now + dur);
+
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(1.15, now + dur * 0.18);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    noiseSource.connect(bandpass);
+    bandpass.connect(gainNode);
+    gainNode.connect(gameAudioCompressor || context.destination);
+    noiseSource.start(now);
+    noiseSource.stop(now + dur + 0.02);
+
+    playGameTone(context, 980, 0, dur * 0.92, 0.045, 'sine', 240);
+    playGameTone(context, 620, 0.02, dur * 0.85, 0.03, 'triangle', 155);
+}
+
 function playGameSound(soundName, variant = '') {
     const context = getGameAudioContext();
     if (!context) return;
@@ -157,12 +198,13 @@ function playGameSound(soundName, variant = '') {
             playGameTone(context, 760, 0.075, 0.11, 0.052, 'sine', 920);
             break;
         case 'capture':
-            playGameNoise(context, 0.12, 0.12, 'lowpass', 680);
-            playGameTone(context, 185, 0, 0.24, 0.095, 'triangle', 72);
-            playGameTone(context, 310, 0.035, 0.19, 0.055, 'sawtooth', 125);
+            playGameNoise(context, 0.075, 0.095, 'bandpass', 1650);
+            playGameTone(context, 520, 0, 0.085, 0.085, 'triangle', 160);
+            playGameTone(context, 880, 0.045, 0.14, 0.075, 'sine', 1320);
+            playGameTone(context, 1180, 0.095, 0.16, 0.065, 'triangle', 340);
             break;
         case 'tokenReturn':
-            playGameTone(context, 290, 0, 0.12, 0.035, 'triangle', 175);
+            playGameTone(context, 420, 0, 0.09, 0.045, 'sine', 190);
             break;
         case 'home':
             [523, 659, 784, 988].forEach((frequency, index) =>
@@ -201,7 +243,7 @@ const LUDO_HOME_LANES = {
 };
 const LUDO_SAFE_CELLS = new Set(['2,6','6,12','8,2','12,8','6,1','1,8','8,13','13,6']);
 const LUDO_STAR_CELLS = new Set(['2,6','6,12','8,2','12,8']);
-const LUDO_TOKEN_STEP_DURATION = 300;
+const LUDO_TOKEN_STEP_DURATION = 280;
 const SNAKE_TOKEN_STEP_DURATION = LUDO_TOKEN_STEP_DURATION;
 const SNAKE_LADDER_LINKS = { 4: 23, 13: 46, 33: 52, 42: 63, 50: 69, 62: 81, 74: 92 };
 const SNAKE_LINKS = { 27: 5, 40: 3, 43: 18, 54: 31, 66: 45, 76: 58, 89: 53, 99: 41 };
@@ -240,7 +282,6 @@ const LUDO_RADIAL_HOME_LANES = Array.from({ length: 6 }, (_, playerIndex) => {
 });
 const LUDO_RADIAL_SAFE_CELLS = new Set(Array.from({ length: 6 }, (_, index) => LUDO_RADIAL_TRACK_PATH[index * 10].join(',')));
 
-// UNLIMITED TIME: TURN TIMER COMPLETELY DISABLED
 function resetAndStartTurnTimer() {
     clearInterval(turnTimerInterval);
     turnTimerInterval = null;
@@ -250,6 +291,147 @@ function resetAndStartTurnTimer() {
     document.querySelectorAll('.lk-player-badge').forEach(badge => {
         badge.classList.remove('warning-time');
     });
+}
+
+function startLiveGreatPlayerPeriodicScheduler() {
+    clearTimeout(liveGreatPlayerTimer);
+    clearInterval(liveGreatPlayerInterval);
+    liveGreatPlayerIndex = -1;
+    liveGreatPlayerUntil = 0;
+
+    liveGreatPlayerInterval = setInterval(() => {
+        if (document.getElementById('gameArenaScreen')?.style.display === 'none') return;
+        updateLiveGreatPlayer();
+    }, 300000);
+}
+
+function stopVictoryFireworks3D() {
+    if (fireworksRafId) {
+        cancelAnimationFrame(fireworksRafId);
+        fireworksRafId = null;
+    }
+    const existingCanvas = document.getElementById('ludoVictoryFireworksCanvas');
+    if (existingCanvas) existingCanvas.remove();
+}
+
+function startVictoryFireworks3D() {
+    const arena = document.getElementById('gameArenaScreen');
+    if (!arena || document.getElementById('ludoVictoryFireworksCanvas')) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'ludoVictoryFireworksCanvas';
+    canvas.className = 'ludo-fireworks-canvas';
+    arena.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    };
+    resize();
+
+    const colors = ['#00f2fe', '#facc15', '#ff007f', '#22c55e', '#a855f7', '#fb7185', '#ffffff'];
+    const rockets = [];
+    const sparks = [];
+
+    const spawnBurst = (bx, by) => {
+        const count = 48;
+        const baseColor = colors[Math.floor(Math.random() * colors.length)];
+        const altColor = colors[Math.floor(Math.random() * colors.length)];
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.2;
+            const speed = 2.2 + Math.random() * 5.8;
+            sparks.push({
+                x: bx, y: by,
+                vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                alpha: 1, decay: 0.012 + Math.random() * 0.014,
+                size: 2.5 + Math.random() * 3.2,
+                color: i % 2 === 0 ? baseColor : altColor
+            });
+        }
+    };
+
+    const w = canvas.width;
+    const h = canvas.height;
+    [
+        [w * 0.16, h * 0.22], [w * 0.84, h * 0.22],
+        [w * 0.18, h * 0.76], [w * 0.82, h * 0.76]
+    ].forEach(([bx, by]) => spawnBurst(bx, by));
+
+    let frameTick = 0;
+    const renderLoop = () => {
+        if (!document.getElementById('ludoVictoryFireworksCanvas')) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        frameTick++;
+        if (frameTick % 26 === 0) {
+            const side = Math.random() < 0.5 ? (0.08 + Math.random() * 0.22) : (0.70 + Math.random() * 0.22);
+            const targetX = canvas.width * side;
+            const targetY = canvas.height * (0.14 + Math.random() * 0.62);
+            rockets.push({
+                x: targetX, y: canvas.height,
+                tx: targetX, ty: targetY,
+                vy: -9 - Math.random() * 4,
+                color: colors[Math.floor(Math.random() * colors.length)]
+            });
+        }
+
+        for (let i = rockets.length - 1; i >= 0; i--) {
+            const r = rockets[i];
+            r.y += r.vy;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = r.color;
+            ctx.fill();
+            ctx.restore();
+
+            if (r.y <= r.ty) {
+                spawnBurst(r.x, r.y);
+                rockets.splice(i, 1);
+            }
+        }
+
+        for (let i = sparks.length - 1; i >= 0; i--) {
+            const s = sparks[i];
+            s.x += s.vx; s.y += s.vy;
+            s.vy += 0.065; s.vx *= 0.985;
+            s.alpha -= s.decay;
+
+            if (s.alpha <= 0) {
+                sparks.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, s.alpha);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fillStyle = s.color;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = s.color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        fireworksRafId = requestAnimationFrame(renderLoop);
+    };
+    fireworksRafId = requestAnimationFrame(renderLoop);
+}
+
+function dismissWinnerPopup() {
+    winnerBannerDismissed = true;
+    const banner = document.querySelector('#arenaStage .ludo-winner-banner');
+    if (banner) banner.remove();
+    stopVictoryFireworks3D();
+}
+
+function replaySameMatch() {
+    stopVictoryFireworks3D();
+    winnerBannerDismissed = false;
+    launchGameMatch();
 }
 
 function createPipDiceHTML(val) {
@@ -276,8 +458,12 @@ function createPipDiceHTML(val) {
 
 function launchGameMatch() {
     closeFullScreenSetup();
+    stopVictoryFireworks3D();
+    winnerBannerDismissed = false;
     let count = 2;
-    if (selectedSubMode === 'ai' || selectedSubMode.startsWith('pass')) { count = parseInt(matchConfigValue) || 2; } 
+    if (selectedSubMode === 'ai' || selectedSubMode.startsWith('pass')) {
+        count = (selectedSubMode.startsWith('pass') && passPlaySubType === 'teamup') ? 4 : (parseInt(matchConfigValue) || 2);
+    } 
     else if (selectedSubMode.startsWith('online')) { count = selectedOnlineSubMode === 'individual' ? 4 : 2; } 
     else if (selectedSubMode === 'tourney') { count = 4; }
     currentMatchPlayerCount = count;
@@ -290,7 +476,8 @@ function launchGameMatch() {
     const radialLudo = count > 4;
     const ludoColors = LUDO_COLORS_BY_COUNT[count] || LUDO_RADIAL_COLOR_ORDER;
     activePlayersList = []; consecutiveSixCount = {}; isDiceRolling = false; ludoPendingMove = null;
-    ludoMatchWinner = null; liveGreatPlayerIndex = -1; liveGreatPlayerUntil = 0; clearTimeout(liveGreatPlayerTimer);
+    ludoMatchWinner = null; activeCaptureNeonCellKey = null; activeCaptureNeonRadialPoint = null;
+    startLiveGreatPlayerPeriodicScheduler();
     ludoAnimationEpoch++; isTokenAnimating = false; ludoQuickMatch = selectedSubMode === 'pass_quick' || selectedSubMode === 'online_quick';
     ludoFirstKillOccurred = false; ludoFinishCelebration = null; ludoMatchIsOffline = !selectedSubMode.startsWith('online');
     ludoMatchStartedAt = Date.now(); ludoMatchFinishedAt = null; currentMatchResultRecorded = false;
@@ -301,7 +488,7 @@ function launchGameMatch() {
         isAI: false, lastRoll: 6, pos: 1, color: ludoColors[0],
         startIndex: radialLudo ? 0 : LUDO_START_INDEX[ludoColors[0]], trackPath: radialLudo ? LUDO_RADIAL_TRACK_PATH : LUDO_TRACK_PATH,
         homeLane: radialLudo ? LUDO_RADIAL_HOME_LANES[0] : LUDO_HOME_LANES[ludoColors[0]],
-        trackLength: radialLudo ? 60 : 52, finishProgress: radialLudo ? 65 : 57, safeCells: radialLudo ? LUDO_RADIAL_SAFE_CELLS : LUDO_SAFE_CELLS,
+        trackLength: radialLudo ? 59 : 51, finishProgress: radialLudo ? 64 : 56, safeCells: radialLudo ? LUDO_RADIAL_SAFE_CELLS : LUDO_SAFE_CELLS,
         radialIndex: radialLudo ? 0 : -1, tokens: Array.from({ length: 4 }, () => ({ progress: -1 })),
         kills: 0, maxCaptureBurst: 0, wasBehind: false, turnResponseTimes: [], turnStartedAt: Date.now()
     });
@@ -313,18 +500,17 @@ function launchGameMatch() {
             avatar: avatars[i % avatars.length], isAI: selectedSubMode === 'ai', lastRoll: 5, pos: 1,
             color: ludoColors[i], startIndex: radialLudo ? i * 10 : LUDO_START_INDEX[ludoColors[i]],
             trackPath: radialLudo ? LUDO_RADIAL_TRACK_PATH : LUDO_TRACK_PATH, homeLane: radialLudo ? LUDO_RADIAL_HOME_LANES[i] : LUDO_HOME_LANES[ludoColors[i]],
-            trackLength: radialLudo ? 60 : 52, finishProgress: radialLudo ? 65 : 57, safeCells: radialLudo ? LUDO_RADIAL_SAFE_CELLS : LUDO_SAFE_CELLS,
+            trackLength: radialLudo ? 59 : 51, finishProgress: radialLudo ? 64 : 56, safeCells: radialLudo ? LUDO_RADIAL_SAFE_CELLS : LUDO_SAFE_CELLS,
             radialIndex: radialLudo ? i : -1, tokens: Array.from({ length: 4 }, () => ({ progress: -1 })),
             kills: 0, maxCaptureBurst: 0, wasBehind: false, turnResponseTimes: [], turnStartedAt: Date.now()
         });
     }
 
-    // Assign Team Up partnership IDs if Pass & Play Team Up is active
-    if (ludoMatchIsOffline && passPlaySubType === 'teamup' && activePlayersList.length === 4) {
+    if (ludoMatchIsOffline && selectedSubMode.startsWith('pass') && passPlaySubType === 'teamup' && activePlayersList.length === 4) {
         activePlayersList.forEach((p, idx) => {
-            p.teamId = idx % 2; // Team 0 (Player 0 & 2) vs Team 1 (Player 1 & 3)
+            p.teamId = idx % 2;
         });
-        showGameToast('👥 Team Up Mode Active (1v1 / 2v2 Partnership)!');
+        showGameToast('👥 Team Up Active! Diagonal Partners: Team A (Blue & Green) vs Team B (Red & Yellow)');
     }
 
     currentTurnIndex = 0;
@@ -337,7 +523,10 @@ function launchGameMatch() {
 }
 
 function quitGameMatch() {
+    stopVictoryFireworks3D();
+    winnerBannerDismissed = false;
     autoSaveActiveMatch(); clearTimeout(ludoAiTimer); clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearTimeout(turnTimerInterval);
+    clearTimeout(liveGreatPlayerTimer); clearInterval(liveGreatPlayerInterval);
     ludoAnimationEpoch++; isTokenAnimating = false; ludoPendingMove = null; document.getElementById('gameArenaScreen').style.display = 'none';
     endOnlineMatchSession(); updateAdminMatchBadgeControl(false); snakeVisualMotion = null;
     const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
@@ -348,23 +537,29 @@ function quitGameMatch() {
 
 function restoreLudoMatchFromSave(save) {
     try {
+        stopVictoryFireworks3D();
+        winnerBannerDismissed = false;
         const radial = save.players.length > 4; currentMatchPlayerCount = save.players.length; activeGameType = 'ludo';
         selectedSubMode = ['ai', 'pass_normal', 'pass_quick', 'tourney'].includes(save.subMode) ? save.subMode : 'ai';
         currentTurnIndex = save.turnIndex;
+        const maxTrack = radial ? 59 : 51;
+        const maxFinish = radial ? 64 : 56;
         activePlayersList = save.players.map((stored, index) => {
             const colorOrder = radial ? LUDO_RADIAL_COLOR_ORDER : (LUDO_COLORS_BY_COUNT[currentMatchPlayerCount] || LUDO_RADIAL_COLOR_ORDER);
             const color = colorOrder.includes(stored.color) ? stored.color : colorOrder[index];
             const radialIndex = radial ? index : -1;
             return {
-                ...stored, color, isAI: Boolean(stored.isAI), tokens: stored.tokens.map(token => ({ progress: token.progress })),
+                ...stored, color, isAI: Boolean(stored.isAI),
+                tokens: stored.tokens.map(token => ({ progress: Math.min(maxFinish, Number(token.progress)) })),
                 startIndex: radial ? index * 10 : LUDO_START_INDEX[color], trackPath: radial ? LUDO_RADIAL_TRACK_PATH : LUDO_TRACK_PATH,
-                homeLane: radial ? LUDO_RADIAL_HOME_LANES[index] : LUDO_HOME_LANES[color], trackLength: radial ? 60 : 52, finishProgress: radial ? 65 : 57,
+                homeLane: radial ? LUDO_RADIAL_HOME_LANES[index] : LUDO_HOME_LANES[color], trackLength: maxTrack, finishProgress: maxFinish,
                 safeCells: radial ? LUDO_RADIAL_SAFE_CELLS : LUDO_SAFE_CELLS, radialIndex, turnStartedAt: Date.now()
             };
         });
         consecutiveSixCount = save.consecutiveSixCount && typeof save.consecutiveSixCount === 'object' ? { ...save.consecutiveSixCount } : {};
         snakeConsecutiveOnes = save.snakeConsecutiveOnes && typeof save.snakeConsecutiveOnes === 'object' ? { ...save.snakeConsecutiveOnes } : {};
-        ludoPendingMove = null; ludoMatchWinner = null; snakeMatchWinner = null; liveGreatPlayerIndex = -1; liveGreatPlayerUntil = 0; clearTimeout(liveGreatPlayerTimer);
+        ludoPendingMove = null; ludoMatchWinner = null; snakeMatchWinner = null; activeCaptureNeonCellKey = null; activeCaptureNeonRadialPoint = null;
+        startLiveGreatPlayerPeriodicScheduler();
         ludoQuickMatch = Boolean(save.quickMatch); ludoFirstKillOccurred = Boolean(save.firstKillOccurred); ludoMatchIsOffline = true;
         ludoMatchStartedAt = Date.now() - Math.max(0, Number(save.elapsedMs) || 0); ludoMatchFinishedAt = null; currentMatchResultRecorded = false;
         isDiceRolling = false; isTokenAnimating = false; ludoAnimationEpoch++; clearTimeout(ludoAiTimer); clearTimeout(ludoFinishTimer); clearTimeout(ludoAutoMoveTimer); clearTimeout(turnTimerInterval);
@@ -413,10 +608,16 @@ function updateLiveGreatPlayer() {
         
     if (liveGreatPlayerIndex < 0) return;
     liveGreatPlayerUntil = Date.now() + 60000;
+    if (document.getElementById('gameArenaScreen')?.style.display !== 'none' && !isTokenAnimating && !isDiceRolling) {
+        renderFullStage();
+    }
     clearTimeout(liveGreatPlayerTimer);
     liveGreatPlayerTimer = setTimeout(() => {
         liveGreatPlayerIndex = -1;
-        if (document.getElementById('gameArenaScreen')?.style.display !== 'none' && ['ludo', 'snake'].includes(activeGameType)) renderFullStage();
+        liveGreatPlayerUntil = 0;
+        if (document.getElementById('gameArenaScreen')?.style.display !== 'none' && ['ludo', 'snake'].includes(activeGameType) && !isTokenAnimating && !isDiceRolling) {
+            renderFullStage();
+        }
     }, 60000);
 }
 
@@ -445,7 +646,29 @@ function getLudoResultMarkup() {
     const winnerIsMe = winner && winner.playerId === getCurrentProfileId();
     const trophy = ludoMatchIsOffline || winnerIsMe ? '<span class="winner-medal">🏆</span>' : '';
     const celebration = !ludoMatchIsOffline && winnerIsMe ? '<span class="winner-exclusive">🏆 YOU WON · CHAMPION</span>' : '';
-    return `<div class="ludo-winner-banner">${trophy}<strong>FIRST PLACE</strong><span class="winner-name">${winnerName}</span>${celebration}<div class="ludo-result-time"><span>MATCH TIME</span><strong>${formatLudoMatchDuration()}</strong></div><div class="ludo-great-player-card"><span class="ludo-mvp-color" style="--mvp-color:${color}"></span><div class="ludo-mvp-details"><small>GREAT PLAYER OF THE MATCH</small><strong>${greatName} · ${escapeLudoResultText(greatPlayer?.color || 'player')} token</strong><span>(${captures} capture${captures === 1 ? '' : 's'})</span></div></div>${getLudoLeaderboardMarkup()}</div>`;
+    return `
+        <div class="ludo-winner-banner">
+            <button type="button" class="winner-popup-close-3d" onclick="dismissWinnerPopup()" title="Close" aria-label="Close popup">×</button>
+            ${trophy}
+            <strong>FIRST PLACE</strong>
+            <span class="winner-name">${winnerName}</span>
+            ${celebration}
+            <div class="ludo-result-time"><span>MATCH TIME</span><strong>${formatLudoMatchDuration()}</strong></div>
+            <div class="ludo-great-player-card">
+                <span class="ludo-mvp-color" style="--mvp-color:${color}"></span>
+                <div class="ludo-mvp-details">
+                    <small>GREAT PLAYER OF THE MATCH</small>
+                    <strong>${greatName} · ${escapeLudoResultText(greatPlayer?.color || 'player')} token</strong>
+                    <span>(${captures} capture${captures === 1 ? '' : 's'})</span>
+                </div>
+            </div>
+            ${getLudoLeaderboardMarkup()}
+            <div class="winner-actions-3d">
+                <button type="button" class="winner-btn-3d play-again-3d" onclick="replaySameMatch()">🔄 Play Again</button>
+                <button type="button" class="winner-btn-3d back-home-3d" onclick="quitGameMatch()">🏠 Back to Home</button>
+            </div>
+        </div>
+    `;
 }
 
 function renderFullStage() {
@@ -454,13 +677,19 @@ function renderFullStage() {
     if (activeGameType === 'ludo') renderLudoBoardPieces();
     if (activeGameType === 'ludo') scheduleLudoAIAction();
     if (activeGameType === 'snake') scheduleSnakeAIAction();
-    if (ludoMatchWinner !== null && activeGameType === 'ludo') { stage.insertAdjacentHTML('beforeend', getLudoResultMarkup()); }
+    if (ludoMatchWinner !== null && activeGameType === 'ludo' && !winnerBannerDismissed) {
+        stage.insertAdjacentHTML('beforeend', getLudoResultMarkup());
+        startVictoryFireworks3D();
+    }
 }
 
 function ludoPieceCell(player, piece) {
-    const progress = piece.progress;
-    if (progress < 0 || progress >= player.finishProgress) return null;
-    if (progress < player.trackLength) return player.trackPath[(player.startIndex + progress) % player.trackLength];
+    const progress = Math.round(Number(piece.progress));
+    if (isNaN(progress) || progress < 0 || progress >= player.finishProgress) return null;
+    const fullLoopLength = player.trackPath.length;
+    if (progress < player.trackLength) {
+        return player.trackPath[(player.startIndex + progress) % fullLoopLength];
+    }
     return player.homeLane[progress - player.trackLength] || null;
 }
 
@@ -470,7 +699,9 @@ function isLegalLudoPiece(playerIndex, pieceIndex) {
 
 function createLudoPieceMarkup(playerIndex, pieceIndex, boardPiece = false) {
     const player = activePlayersList[playerIndex]; const legal = isLegalLudoPiece(playerIndex, pieceIndex);
-    const classes = `lk-pin-token pin-${player.color}${boardPiece ? ' board-piece-token' : ''}${legal ? ' legal-move' : ''}`;
+    const piece = player.tokens[pieceIndex];
+    const slidingClass = piece && piece.isReturningSlide ? ' returning-glide-token' : '';
+    const classes = `lk-pin-token pin-${player.color}${boardPiece ? ' board-piece-token' : ''}${legal ? ' legal-move' : ''}${slidingClass}`;
     const handler = legal ? `onclick="chooseLudoPiece(${playerIndex},${pieceIndex})"` : '';
     return `<div class="${classes}" ${handler} role="${legal ? 'button' : 'img'}" aria-label="${player.name} token ${pieceIndex + 1}"></div>`;
 }
@@ -496,6 +727,11 @@ function renderLudoBoardPieces() {
         });
     });
     document.querySelectorAll('#arenaStage .piece-stack').forEach(stack => { if (stack.children.length > 1) stack.classList.add('crowded'); });
+
+    if (activeCaptureNeonCellKey) {
+        const capCell = document.querySelector(`#arenaStage [data-cell="${activeCaptureNeonCellKey}"]`);
+        if (capCell) capCell.classList.add('capture-neon-burst');
+    }
 }
 
 function buildPlayerBadgeHTML(pIdx, isRightSide = false, extraClass = '') {
@@ -536,6 +772,13 @@ function render4PlayerLudoStage(stage) {
     const yellowSix = isSixActiveForPlayer(brIdx);
     const blueSix = isSixActiveForPlayer(blIdx);
 
+    const isTeamUp = (ludoMatchIsOffline && selectedSubMode.startsWith('pass') && passPlaySubType === 'teamup') || selectedSubMode.includes('teamup');
+    const teamStyleBase = 'position:absolute;z-index:6;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:900;letter-spacing:0.08em;color:rgba(255,255,255,0.88);background:linear-gradient(145deg,rgba(15,23,42,0.55),rgba(30,41,59,0.35));border:1px solid rgba(255,255,255,0.35);box-shadow:0 2px 0 rgba(0,0,0,0.45),0 3px 6px rgba(0,0,0,0.3);text-shadow:0 1px 2px rgba(0,0,0,0.8);pointer-events:none;';
+    const labelRedTL    = isTeamUp ? `<span style="${teamStyleBase}top:5px;left:6px;">TEAM B</span>` : '';
+    const labelGreenTR  = isTeamUp ? `<span style="${teamStyleBase}top:5px;right:6px;">TEAM A</span>` : '';
+    const labelBlueBL   = isTeamUp ? `<span style="${teamStyleBase}bottom:5px;left:6px;">TEAM A</span>` : '';
+    const labelYellowBR = isTeamUp ? `<span style="${teamStyleBase}bottom:5px;right:6px;">TEAM B</span>` : '';
+
     let cells = '';
     for (let row = 0; row < 15; row++) for (let col = 0; col < 15; col++) {
         if ((row >= 6 && row <= 8 && col >= 6 && col <= 8) || (row < 6 && col < 6) || (row < 6 && col > 8) || (row > 8 && col < 6) || (row > 8 && col > 8)) continue;
@@ -553,6 +796,7 @@ function render4PlayerLudoStage(stage) {
         if (row === 8 && col === 13) cls = 'board-cell start-yellow' + (yellowSix ? ' dice-six-highlight' : '');
         if (row === 13 && col === 6) cls = 'board-cell start-blue' + (blueSix ? ' dice-six-highlight' : '');
         if (LUDO_STAR_CELLS.has(`${row},${col}`)) cls += ' safe';
+        if (activeCaptureNeonCellKey === `${row},${col}`) cls += ' capture-neon-burst';
         cells += `<div class="${cls}" data-cell="${row},${col}" style="grid-row:${row + 1};grid-column:${col + 1}"><div class="piece-stack" data-cell-stack="${row},${col}"></div></div>`;
     }
 
@@ -563,11 +807,11 @@ function render4PlayerLudoStage(stage) {
         <div class="lk-board-box">
             <div class="ludo-board-grid">
                 ${cells}
-                <div class="board-home-base base-red ${redSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-red',tlIdx,0)}${makePinSpot('spot-red',tlIdx,1)}${makePinSpot('spot-red',tlIdx,2)}${makePinSpot('spot-red',tlIdx,3)}</div></div>
-                <div class="board-home-base base-green ${greenSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-green',trIdx,0)}${makePinSpot('spot-green',trIdx,1)}${makePinSpot('spot-green',trIdx,2)}${makePinSpot('spot-green',trIdx,3)}</div></div>
+                <div class="board-home-base base-red ${redSix ? 'base-six-neon' : ''}" style="position:relative;">${labelRedTL}<div class="home-inner-box">${makePinSpot('spot-red',tlIdx,0)}${makePinSpot('spot-red',tlIdx,1)}${makePinSpot('spot-red',tlIdx,2)}${makePinSpot('spot-red',tlIdx,3)}</div></div>
+                <div class="board-home-base base-green ${greenSix ? 'base-six-neon' : ''}" style="position:relative;">${labelGreenTR}<div class="home-inner-box">${makePinSpot('spot-green',trIdx,0)}${makePinSpot('spot-green',trIdx,1)}${makePinSpot('spot-green',trIdx,2)}${makePinSpot('spot-green',trIdx,3)}</div></div>
                 <div class="center-home"><div class="piece-stack finish-stack" data-cell-stack="center"></div></div>
-                <div class="board-home-base base-blue ${blueSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-blue',blIdx,0)}${makePinSpot('spot-blue',blIdx,1)}${makePinSpot('spot-blue',blIdx,2)}${makePinSpot('spot-blue',blIdx,3)}</div></div>
-                <div class="board-home-base base-yellow ${yellowSix ? 'base-six-neon' : ''}"><div class="home-inner-box">${makePinSpot('spot-yellow',brIdx,0)}${makePinSpot('spot-yellow',brIdx,1)}${makePinSpot('spot-yellow',brIdx,2)}${makePinSpot('spot-yellow',brIdx,3)}</div></div>
+                <div class="board-home-base base-blue ${blueSix ? 'base-six-neon' : ''}" style="position:relative;">${labelBlueBL}<div class="home-inner-box">${makePinSpot('spot-blue',blIdx,0)}${makePinSpot('spot-blue',blIdx,1)}${makePinSpot('spot-blue',blIdx,2)}${makePinSpot('spot-blue',blIdx,3)}</div></div>
+                <div class="board-home-base base-yellow ${yellowSix ? 'base-six-neon' : ''}" style="position:relative;">${labelYellowBR}<div class="home-inner-box">${makePinSpot('spot-yellow',brIdx,0)}${makePinSpot('spot-yellow',brIdx,1)}${makePinSpot('spot-yellow',brIdx,2)}${makePinSpot('spot-yellow',brIdx,3)}</div></div>
             </div>
         </div>
         <div class="lk-hud-row">${buildPlayerBadgeHTML(blIdx, false)} ${buildPlayerBadgeHTML(brIdx, true)}</div>
@@ -643,10 +887,14 @@ function rotateRadialPoint(point, rotationDegrees) {
 
 function createRadialTokenSvg(playerIndex, pieceIndex, x, y, legal, scale = 1, celebrate = false) {
     const player = activePlayersList[playerIndex]; const color = LUDO_RADIAL_COLOR_HEX[player.color] || '#111827';
+    const piece = player.tokens[pieceIndex];
+    const isSliding = Boolean(piece && piece.isReturningSlide);
     const handler = legal ? `onclick="chooseLudoPiece(${playerIndex},${pieceIndex})"` : '';
-    const finalScale = legal ? scale * 1.28 : scale;
-    const filter = legal ? 'drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 8px #facc15) drop-shadow(0 3px 4px rgba(15,23,42,0.75))' : 'drop-shadow(0 2px 2px rgba(15,23,42,0.55))';
-    return `<g class="${celebrate ? 'finish-arrival-svg' : ''}" transform="translate(${x} ${y}) scale(${finalScale})" ${handler} role="${legal ? 'button' : 'img'}" aria-label="${player.name} token ${pieceIndex + 1}" style="cursor:${legal ? 'pointer' : 'default'};filter:${filter}"><path d="M0 13 C-2 8 -10 -1 -10 -8 A10 10 0 1 1 10 -8 C10 -1 2 8 0 13 Z" fill="${color}" stroke="#fff" stroke-width="${legal ? '2.8' : '2'}"/><circle cx="0" cy="-8" r="4" fill="#fff" fill-opacity=".95"/></g>`;
+    const finalScale = isSliding ? scale * 1.24 : (legal ? scale * 1.28 : scale);
+    const filter = isSliding
+        ? 'drop-shadow(0 0 5px #ffffff) drop-shadow(0 0 12px #00f2fe) drop-shadow(0 0 18px #ff007f)'
+        : (legal ? 'drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 8px #facc15) drop-shadow(0 3px 4px rgba(15,23,42,0.75))' : 'drop-shadow(0 2px 2px rgba(15,23,42,0.55))');
+    return `<g class="${celebrate ? 'finish-arrival-svg' : ''}" transform="translate(${x} ${y}) scale(${finalScale})" ${handler} role="${legal ? 'button' : 'img'}" aria-label="${player.name} token ${pieceIndex + 1}" style="cursor:${legal ? 'pointer' : 'default'};filter:${filter}"><path d="M0 13 C-2 8 -10 -1 -10 -8 A10 10 0 1 1 10 -8 C10 -1 2 8 0 13 Z" fill="${color}" stroke="#fff" stroke-width="${legal || isSliding ? '2.8' : '2'}"/><circle cx="0" cy="-8" r="4" fill="#fff" fill-opacity=".95"/></g>`;
 }
 
 function renderRadialLudoPieces() {
@@ -654,6 +902,10 @@ function renderRadialLudoPieces() {
     if (!layer) return;
     const homeSlots = [[232,70],[268,70],[250,98],[250,128]];
     let markup = '';
+    if (activeCaptureNeonRadialPoint) {
+        const [cx, cy] = activeCaptureNeonRadialPoint;
+        markup += `<circle cx="${cx}" cy="${cy}" r="18" fill="rgba(0,242,254,0.35)" stroke="#00f2fe" stroke-width="3" style="filter:drop-shadow(0 0 12px #00f2fe) drop-shadow(0 0 20px #ff007f)"/>`;
+    }
     activePlayersList.forEach((player, playerIndex) => {
         player.tokens.forEach((piece, pieceIndex) => {
             if (piece.progress < 0) {
@@ -681,10 +933,21 @@ function renderRadialLudoPieces() {
 
 function getLegalLudoPieces(playerIndex, roll) {
     const player = activePlayersList[playerIndex];
+    const exactRoll = Math.round(Number(roll));
+    if (!player || isNaN(exactRoll) || exactRoll < 1 || exactRoll > 6) return [];
+
     return player.tokens.reduce((legal, piece, pieceIndex) => {
-        const entersHomeLane = piece.progress >= 0 && piece.progress < player.trackLength && piece.progress + roll >= player.trackLength;
-        const quickHomeLocked = ludoQuickMatch && !ludoFirstKillOccurred && entersHomeLane;
-        if (!quickHomeLocked && (piece.progress < 0 ? roll === 6 : piece.progress < player.finishProgress && piece.progress + roll <= player.finishProgress)) legal.push(pieceIndex);
+        const progress = Math.round(Number(piece.progress));
+        if (progress < 0) {
+            if (exactRoll === 6) legal.push(pieceIndex);
+        } else if (progress < player.finishProgress) {
+            const nextProg = progress + exactRoll;
+            const entersHomeLane = progress < player.trackLength && nextProg >= player.trackLength;
+            const quickHomeLocked = ludoQuickMatch && !ludoFirstKillOccurred && entersHomeLane;
+            if (!quickHomeLocked && nextProg <= player.finishProgress) {
+                legal.push(pieceIndex);
+            }
+        }
         return legal;
     }, []);
 }
@@ -699,7 +962,9 @@ function advanceLudoTurn() {
 function getLudoTeamKey(playerIndex) {
     const player = activePlayersList[playerIndex];
     if (player && player.teamId !== undefined && player.teamId !== null) return `team:${player.teamId}`;
-    if (activePlayersList.length === 4 && selectedSubMode.includes('teamup')) return `pair:${playerIndex % 2}`;
+    if (activePlayersList.length === 4 && (selectedSubMode.includes('teamup') || (selectedSubMode.startsWith('pass') && passPlaySubType === 'teamup'))) {
+        return `pair:${playerIndex % 2}`;
+    }
     return `player:${playerIndex}`;
 }
 
@@ -715,10 +980,7 @@ function getLudoCapturableTokens(attackerIndex, targetCell, projectedMove = null
     const cellKey = `${targetCell[0]},${targetCell[1]}`;
     const cellForPiece = (player, piece, playerIndex, pieceIndex) => {
         if (projectedMove && playerIndex === attackerIndex && pieceIndex === projectedMove.pieceIndex) {
-            const progress = projectedMove.progress;
-            if (progress < 0 || progress >= player.finishProgress) return null;
-            if (progress < player.trackLength) return player.trackPath[(player.startIndex + progress) % player.trackLength];
-            return player.homeLane[progress - player.trackLength] || null;
+            return ludoPieceCell(player, { progress: projectedMove.progress });
         }
         return ludoPieceCell(player, piece);
     };
@@ -759,15 +1021,15 @@ function isLudoDoubleStackProtected(attackerIndex, targetCell) {
 
 function scheduleLudoAIAction() {
     clearTimeout(ludoAiTimer);
-    if (ludoMatchWinner || activeGameType !== 'ludo' || isTokenAnimating) return;
+    if (ludoMatchWinner !== null || activeGameType !== 'ludo' || isTokenAnimating) return;
     const player = activePlayersList[currentTurnIndex];
     if (!player || !player.isAI) return;
     ludoAiTimer = setTimeout(() => {
-        if (ludoMatchWinner || isDiceRolling || isTokenAnimating) return;
+        if (ludoMatchWinner !== null || isDiceRolling || isTokenAnimating) return;
         if (ludoPendingMove && ludoPendingMove.playerIndex === currentTurnIndex) {
             const choices = ludoPendingMove.legalPieceIndexes; chooseLudoAIMove(currentTurnIndex, choices, ludoPendingMove.roll);
         } else { rollPlayerDice(currentTurnIndex); }
-    }, 750);
+    }, 650);
 }
 
 function scheduleSnakeAIAction() {
@@ -778,95 +1040,221 @@ function scheduleSnakeAIAction() {
     ludoAiTimer = setTimeout(() => {
         if (snakeMatchWinner !== null || activeGameType !== 'snake' || isDiceRolling || isTokenAnimating) return;
         rollPlayerDice(currentTurnIndex);
-    }, 750);
+    }, 650);
 }
 
-// 3. ADVANCED HARD AI LOGIC (HIGH STRATEGY & ACCURACY)
-const LUDO_AI_HARD_TURN_CHANCE = 0.85;
+function countEnemyThreatsOnCell(playerIndex, cell, progressAtCell) {
+    if (!cell || progressAtCell < 0) return 0;
+    const player = activePlayersList[playerIndex];
+    if (progressAtCell >= player.trackLength) return 0;
+    const cellKey = `${cell[0]},${cell[1]}`;
+    if (player.safeCells.has(cellKey)) return 0;
 
-function ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) {
-    const player = activePlayersList[playerIndex]; 
-    const piece = player.tokens[pieceIndex];
-    const oldProgress = piece.progress; 
-    const nextProgress = oldProgress < 0 ? 0 : oldProgress + roll;
-    const nextCell = ludoPieceCell(player, { progress: nextProgress }); 
-    const isHard = difficulty === 'hard';
-    let score = roll * (isHard ? 2.2 : 1.5);
+    const myTeam = getLudoTeamKey(playerIndex);
+    let threatCount = 0;
 
-    if (oldProgress < 0) score += isHard ? 35 : 20;
-    if (nextProgress === player.finishProgress) score += isHard ? 140 : 90;
-    if (nextProgress >= player.trackLength && nextProgress < player.finishProgress) { 
-        score += (isHard ? 22 : 14) + (nextProgress - player.trackLength) * 4; 
-    }
+    for (let oppIdx = 0; oppIdx < activePlayersList.length; oppIdx++) {
+        if (oppIdx === playerIndex || getLudoTeamKey(oppIdx) === myTeam) continue;
+        const opponent = activePlayersList[oppIdx];
 
-    if (!nextCell || nextProgress >= player.trackLength) return score;
-
-    const cellKey = `${nextCell[0]},${nextCell[1]}`; 
-    const safe = player.safeCells.has(cellKey);
-
-    if (safe) score += isHard ? 28 : 15;
-
-    const captures = getLudoCapturableTokens(playerIndex, nextCell, { pieceIndex, progress: nextProgress }).length;
-    if (!safe) score += captures * (isHard ? 85 : 50);
-
-    if (!safe) {
-        let threatened = false;
-        for (let opponentIndex = 0; opponentIndex < activePlayersList.length && !threatened; opponentIndex++) {
-            if (opponentIndex === playerIndex) continue;
-            if (selectedSubMode.includes('teamup') && getLudoTeamKey(opponentIndex) === getLudoTeamKey(playerIndex)) continue;
-
-            const opponent = activePlayersList[opponentIndex];
-            for (const enemy of opponent.tokens) {
-                if (enemy.progress < 0 || enemy.progress >= opponent.trackLength) continue;
-                for (let enemyRoll = 1; enemyRoll <= 6; enemyRoll++) {
-                    const enemyNext = enemy.progress + enemyRoll; 
-                    if (enemyNext >= opponent.trackLength) continue;
-                    const enemyNextCell = ludoPieceCell(opponent, { progress: enemyNext });
-                    if (enemyNextCell && enemyNextCell[0] === nextCell[0] && enemyNextCell[1] === nextCell[1]) { 
-                        threatened = true; 
-                        break; 
-                    }
+        for (const enemy of opponent.tokens) {
+            if (enemy.progress < 0) {
+                const enemyStartCell = ludoPieceCell(opponent, { progress: 0 });
+                if (enemyStartCell && `${enemyStartCell[0]},${enemyStartCell[1]}` === cellKey) {
+                    threatCount += 1;
                 }
-                if (threatened) break;
+                continue;
+            }
+            if (enemy.progress >= opponent.trackLength) continue;
+
+            for (let r = 1; r <= 6; r++) {
+                const enemyNext = enemy.progress + r;
+                if (enemyNext >= opponent.trackLength) continue;
+                const enemyNextCell = ludoPieceCell(opponent, { progress: enemyNext });
+                if (enemyNextCell && enemyNextCell[0] === cell[0] && enemyNextCell[1] === cell[1]) {
+                    threatCount += (r <= 3 ? 2.2 : 1.5);
+                }
             }
         }
-        if (threatened) score -= isHard ? 65 : 30;
     }
+    return threatCount;
+}
+
+function countChaseablePreyAhead(playerIndex, fromProgress) {
+    const player = activePlayersList[playerIndex];
+    if (fromProgress < 0 || fromProgress >= player.trackLength) return 0;
+    const myTeam = getLudoTeamKey(playerIndex);
+    let preyScore = 0;
+
+    for (let stepAhead = 1; stepAhead <= 6; stepAhead++) {
+        const checkProg = fromProgress + stepAhead;
+        if (checkProg >= player.trackLength) break;
+        const checkCell = ludoPieceCell(player, { progress: checkProg });
+        if (!checkCell) continue;
+        const cellKey = `${checkCell[0]},${checkCell[1]}`;
+        if (player.safeCells.has(cellKey)) continue;
+
+        activePlayersList.forEach((opp, oppIdx) => {
+            if (oppIdx === playerIndex || getLudoTeamKey(oppIdx) === myTeam) return;
+            opp.tokens.forEach(enemy => {
+                if (enemy.progress < 0 || enemy.progress >= opp.trackLength) return;
+                const eCell = ludoPieceCell(opp, enemy);
+                if (eCell && eCell[0] === checkCell[0] && eCell[1] === checkCell[1]) {
+                    preyScore += 25 + (enemy.progress * 0.6);
+                }
+            });
+        });
+    }
+    return preyScore;
+}
+
+function ludoAIMoveScore(playerIndex, pieceIndex, roll) {
+    const player = activePlayersList[playerIndex];
+    const piece = player.tokens[pieceIndex];
+    const oldProgress = Math.round(Number(piece.progress));
+    const nextProgress = oldProgress < 0 ? 0 : oldProgress + roll;
+    const currentCell = oldProgress >= 0 ? ludoPieceCell(player, { progress: oldProgress }) : null;
+    const nextCell = ludoPieceCell(player, { progress: nextProgress });
+
+    let score = 0;
+    const activeTokensOnBoard = player.tokens.filter(t => t.progress >= 0 && t.progress < player.finishProgress).length;
+
+    if (oldProgress < 0) {
+        if (activeTokensOnBoard === 0) score += 260;
+        else if (activeTokensOnBoard === 1) score += 175;
+        else if (activeTokensOnBoard === 2) score += 115;
+        else score += 75;
+
+        if (nextCell) {
+            const spawnCaptures = getLudoCapturableTokens(playerIndex, nextCell, { pieceIndex, progress: 0 }).length;
+            score += spawnCaptures * 240;
+        }
+        return score;
+    }
+
+    const currentThreat = countEnemyThreatsOnCell(playerIndex, currentCell, oldProgress);
+    const currentCellKey = currentCell ? `${currentCell[0]},${currentCell[1]}` : '';
+    const currentlySafe = (oldProgress >= player.trackLength) || (currentCellKey && player.safeCells.has(currentCellKey));
+
+    if (!currentlySafe && currentThreat > 0) {
+        score += (currentThreat * 52) + (oldProgress * 1.4);
+    }
+
+    if (nextProgress === player.finishProgress) {
+        score += 320;
+        return score;
+    }
+
+    if (nextProgress >= player.trackLength && nextProgress < player.finishProgress) {
+        if (oldProgress < player.trackLength) {
+            score += 165 + (oldProgress * 0.8);
+        } else {
+            score += 28 + (nextProgress - player.trackLength) * 6;
+        }
+        return score;
+    }
+
+    if (!nextCell) return score;
+    const nextCellKey = `${nextCell[0]},${nextCell[1]}`;
+    const nextIsSafe = player.safeCells.has(nextCellKey);
+
+    const capturable = getLudoCapturableTokens(playerIndex, nextCell, { pieceIndex, progress: nextProgress });
+    if (!nextIsSafe && capturable.length > 0) {
+        const victimProgressBonus = capturable.reduce((sum, v) => sum + Math.max(10, v.piece.progress * 1.5), 0);
+        score += (capturable.length * 260) + victimProgressBonus;
+    }
+
+    if (nextIsSafe) {
+        if (!currentlySafe) score += 95 + (oldProgress * 0.6);
+        else score += 40;
+    }
+
+    const futureThreat = countEnemyThreatsOnCell(playerIndex, nextCell, nextProgress);
+    if (currentlySafe && !nextIsSafe) {
+        if (futureThreat > 0) score -= (futureThreat * 75) + (oldProgress * 1.1);
+        else score -= 18;
+    }
+
+    if (!nextIsSafe && futureThreat > 0) {
+        score -= (futureThreat * 62) + (nextProgress * 1.25);
+    }
+
+    const friendlyAtTarget = player.tokens.filter((t, idx) => idx !== pieceIndex && t.progress >= 0 && t.progress < player.trackLength && (() => {
+        const c = ludoPieceCell(player, t);
+        return c && c[0] === nextCell[0] && c[1] === nextCell[1];
+    })()).length;
+    if (friendlyAtTarget > 0) score += 34;
+
+    score += countChaseablePreyAhead(playerIndex, nextProgress);
+
+    if (futureThreat === 0) {
+        score += (nextProgress * 1.15) + (roll * 2);
+    } else {
+        score += (roll * 1.2);
+    }
+
+    if (ludoQuickMatch && !ludoFirstKillOccurred && capturable.length > 0) {
+        score += 200;
+    }
+
     return score;
 }
 
 function chooseLudoAIMove(playerIndex, legalPieceIndexes, roll) {
     if (!legalPieceIndexes.length) return;
-    const difficulty = Math.random() < LUDO_AI_HARD_TURN_CHANCE ? 'hard' : 'medium';
-    const rankedMoves = legalPieceIndexes.map(pieceIndex => ({ 
-        pieceIndex, 
-        score: ludoAIMoveScore(playerIndex, pieceIndex, roll, difficulty) 
+    if (legalPieceIndexes.length === 1) {
+        chooseLudoPiece(playerIndex, legalPieceIndexes[0]);
+        return;
+    }
+
+    const rankedMoves = legalPieceIndexes.map(pieceIndex => ({
+        pieceIndex,
+        score: ludoAIMoveScore(playerIndex, pieceIndex, roll)
     })).sort((a, b) => b.score - a.score);
 
-    let chosen = rankedMoves[0];
-    const bestTies = rankedMoves.filter(move => move.score === rankedMoves[0].score);
-    chosen = bestTies[Math.floor(Math.random() * bestTies.length)];
-    
+    const bestScore = rankedMoves[0].score;
+    const bestTies = rankedMoves.filter(move => Math.abs(move.score - bestScore) < 0.01);
+    const chosen = bestTies[Math.floor(Math.random() * bestTies.length)];
+
     chooseLudoPiece(playerIndex, chosen.pieceIndex);
 }
 
 const ludoAnimationDelay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function chooseLudoPiece(playerIndex, pieceIndex) {
-    if (!ludoPendingMove || ludoPendingMove.playerIndex !== playerIndex || !ludoPendingMove.legalPieceIndexes.includes(pieceIndex) || isDiceRolling || isTokenAnimating || ludoMatchWinner) return;
+    if (!ludoPendingMove || ludoPendingMove.playerIndex !== playerIndex || !ludoPendingMove.legalPieceIndexes.includes(pieceIndex) || isDiceRolling || isTokenAnimating || ludoMatchWinner !== null) return;
 
-    const player = activePlayersList[playerIndex]; const piece = player.tokens[pieceIndex]; const rolled = ludoPendingMove.roll;
-    clearTimeout(ludoAutoMoveTimer); clearInterval(turnTimerInterval);
-    const epoch = ++ludoAnimationEpoch; const originalProgress = piece.progress; const targetProgress = originalProgress < 0 ? 0 : originalProgress + rolled;
-    const stepCount = originalProgress < 0 ? 1 : targetProgress - originalProgress; const stepDelay = LUDO_TOKEN_STEP_DURATION;
-    isTokenAnimating = true; ludoPendingMove = null; ludoFinishCelebration = null; liveGreatPlayerIndex = -1; liveGreatPlayerUntil = 0; clearTimeout(liveGreatPlayerTimer);
+    const player = activePlayersList[playerIndex];
+    const piece = player.tokens[pieceIndex];
+    const lockedRoll = Math.round(Number(ludoPendingMove.roll));
+    if (isNaN(lockedRoll) || lockedRoll < 1 || lockedRoll > 6) return;
 
-    for (let step = 0; step < stepCount; step++) {
+    player.lastRoll = lockedRoll;
+
+    clearTimeout(ludoAutoMoveTimer);
+    clearInterval(turnTimerInterval);
+
+    const epoch = ++ludoAnimationEpoch;
+    const originalProgress = Math.round(Number(piece.progress));
+    const targetProgress = originalProgress < 0 ? 0 : originalProgress + lockedRoll;
+    const stepCount = originalProgress < 0 ? 1 : lockedRoll;
+    const stepDelay = LUDO_TOKEN_STEP_DURATION;
+
+    isTokenAnimating = true;
+    ludoPendingMove = null;
+    ludoFinishCelebration = null;
+
+    for (let step = 1; step <= stepCount; step++) {
         if (epoch !== ludoAnimationEpoch) return;
-        piece.progress = originalProgress < 0 ? 0 : originalProgress + step + 1;
-        renderFullStage(); playGameSound(originalProgress < 0 ? 'tokenEnter' : 'tokenStep'); await ludoAnimationDelay(stepDelay);
+        player.lastRoll = lockedRoll;
+        piece.progress = originalProgress < 0 ? 0 : originalProgress + step;
+        renderFullStage();
+        playGameSound(originalProgress < 0 ? 'tokenEnter' : 'tokenStep');
+        await ludoAnimationDelay(stepDelay);
     }
     if (epoch !== ludoAnimationEpoch) return;
+    piece.progress = targetProgress;
+    player.lastRoll = lockedRoll;
 
     let capturedTokens = []; const landedCell = ludoPieceCell(player, piece);
     const canCapture = piece.progress < player.trackLength && landedCell && !player.safeCells.has(`${landedCell[0]},${landedCell[1]}`);
@@ -874,16 +1262,43 @@ async function chooseLudoPiece(playerIndex, pieceIndex) {
     const capturedCount = capturedTokens.length; const protectedDoubleStack = canCapture && isLudoDoubleStackProtected(playerIndex, landedCell);
 
     if (capturedCount) {
-        playGameSound('capture'); ludoFirstKillOccurred = true;
+        ludoFirstKillOccurred = true;
+
+        if (currentMatchPlayerCount <= 4 && landedCell) {
+            activeCaptureNeonCellKey = `${landedCell[0]},${landedCell[1]}`;
+        } else if (landedCell) {
+            activeCaptureNeonRadialPoint = landedCell;
+        }
+
+        playGameSound('capture');
+        renderFullStage();
+        await ludoAnimationDelay(150);
+
+        const FAST_GLIDE_STEP_MS = 16;
         for (const { piece: enemyPiece } of capturedTokens) {
+            const totalReturnSteps = Math.max(1, enemyPiece.progress);
+            const slideDurationSec = Math.max(0.24, (totalReturnSteps * FAST_GLIDE_STEP_MS) / 1000);
+            enemyPiece.isReturningSlide = true;
+            playTokenSlideReturnSound(slideDurationSec);
+
             while (enemyPiece.progress > 0) {
                 if (epoch !== ludoAnimationEpoch) return;
-                enemyPiece.progress--; renderFullStage(); await ludoAnimationDelay(LUDO_TOKEN_STEP_DURATION);
+                enemyPiece.progress--;
+                renderFullStage();
+                await ludoAnimationDelay(FAST_GLIDE_STEP_MS);
             }
             if (epoch !== ludoAnimationEpoch) return;
-            enemyPiece.progress = -1; renderFullStage(); playGameSound('tokenReturn'); await ludoAnimationDelay(LUDO_TOKEN_STEP_DURATION);
+            enemyPiece.isReturningSlide = false;
+            enemyPiece.progress = -1;
+            playGameSound('tokenReturn');
+            renderFullStage();
+            await ludoAnimationDelay(70);
         }
-        player.kills += capturedCount; player.maxCaptureBurst = Math.max(player.maxCaptureBurst || 0, capturedCount);
+
+        activeCaptureNeonCellKey = null;
+        activeCaptureNeonRadialPoint = null;
+        player.kills += capturedCount;
+        player.maxCaptureBurst = Math.max(player.maxCaptureBurst || 0, capturedCount);
     }
 
     markLudoPlayersWhoFellBehind();
@@ -901,6 +1316,7 @@ async function chooseLudoPiece(playerIndex, pieceIndex) {
     isTokenAnimating = false;
 
     if (hasWon) {
+        winnerBannerDismissed = false;
         ludoMatchWinner = playerIndex; ludoMatchFinishedAt = Date.now();
         if (!currentMatchResultRecorded) { currentMatchResultRecorded = true; recordCompletedMatch('ludo', activePlayersList, playerIndex); }
         showGameToast(`🏆 ${player.name} wins the match!`);
@@ -908,61 +1324,50 @@ async function chooseLudoPiece(playerIndex, pieceIndex) {
         showGameToast(`💥 ${player.name} captured ${capturedCount} token${capturedCount === 1 ? '' : 's'}! Bonus turn.`);
     } else if (reachedHome) {
         showGameToast(`🏠 ${player.name}'s token reached home! Bonus turn.`);
-    } else if (rolled === 6) {
-        showGameToast(`🎉 ${player.name} rolled 6! Bonus turn.`);
     } else if (protectedDoubleStack) {
         showGameToast(`🛡️ That double stack needs two tokens to capture.`);
     }
 
-    if (!hasWon && rolled !== 6 && !capturedCount && !reachedHome) { advanceLudoTurn(); } 
+    if (!hasWon && lockedRoll !== 6 && !capturedCount && !reachedHome) { advanceLudoTurn(); } 
     else { if (!hasWon) resetAndStartTurnTimer(); }
     if (!hasWon && currentTurnIndex === playerIndex) player.turnStartedAt = Date.now();
     
-    updateLiveGreatPlayer();
-    if (hasWon) { clearTimeout(liveGreatPlayerTimer); liveGreatPlayerIndex = -1; }
+    if (hasWon) { clearTimeout(liveGreatPlayerTimer); clearInterval(liveGreatPlayerInterval); liveGreatPlayerIndex = -1; }
     renderFullStage(); if (hasWon) removeActiveMatchSave(); else autoSaveActiveMatch();
 }
 
 function processLudoRoll(playerIndex, rolledNum) {
     const player = activePlayersList[playerIndex];
-    if (rolledNum === 6 && (consecutiveSixCount[playerIndex] || 0) >= 2) {
-        rolledNum = Math.floor(Math.random() * 5) + 1; player.lastRoll = rolledNum; renderFullStage();
-    }
-    consecutiveSixCount[playerIndex] = (rolledNum === 6) ? (consecutiveSixCount[playerIndex] || 0) + 1 : 0;
+    const finalRoll = Math.round(Number(rolledNum));
+    player.lastRoll = finalRoll;
+    consecutiveSixCount[playerIndex] = (finalRoll === 6) ? (consecutiveSixCount[playerIndex] || 0) + 1 : 0;
 
-    const legalPieceIndexes = getLegalLudoPieces(playerIndex, rolledNum);
+    const legalPieceIndexes = getLegalLudoPieces(playerIndex, finalRoll);
     if (!legalPieceIndexes.length) {
-        const homeLaneLocked = ludoQuickMatch && !ludoFirstKillOccurred && player.tokens.some(piece => piece.progress >= 0 && piece.progress < player.trackLength && piece.progress + rolledNum >= player.trackLength);
+        const homeLaneLocked = ludoQuickMatch && !ludoFirstKillOccurred && player.tokens.some(piece => piece.progress >= 0 && piece.progress < player.trackLength && piece.progress + finalRoll >= player.trackLength);
         if (homeLaneLocked) {
             showGameToast(`🔒 ${player.name}: the home lane opens after the first capture.`);
         }
-        if (rolledNum === 6) {
-            showGameToast(`🎲 ${player.name} rolled 6, but has no legal move. Roll again.`);
-            player.turnStartedAt = Date.now(); resetAndStartTurnTimer();
-        } else {
-            showGameToast(`🎲 ${player.name} has no legal move. Next player's turn.`);
-            advanceLudoTurn();
-        }
-        renderFullStage(); autoSaveActiveMatch(); return;
+        consecutiveSixCount[playerIndex] = 0;
+        advanceLudoTurn();
+        renderFullStage();
+        autoSaveActiveMatch();
+        return;
     }
 
-    ludoPendingMove = { playerIndex, roll: rolledNum, legalPieceIndexes };
+    ludoPendingMove = { playerIndex, roll: finalRoll, legalPieceIndexes };
     clearTimeout(ludoAutoMoveTimer);
     resetAndStartTurnTimer();
-
     renderFullStage();
 
     if (!player.isAI && legalPieceIndexes.length === 1) {
-        showGameToast(rolledNum === 6 ? `🎉 ${player.name} rolled 6 — token moving.` : `🎲 ${player.name} rolled ${rolledNum} — token moving.`);
         const onlyLegalPiece = legalPieceIndexes[0];
-        const autoMoveWait = rolledNum === 6 ? 450 : 80;
+        const autoMoveWait = finalRoll === 6 ? 380 : 140;
         ludoAutoMoveTimer = setTimeout(() => {
             if (currentTurnIndex === playerIndex && ludoPendingMove && ludoPendingMove.playerIndex === playerIndex) {
                 chooseLudoPiece(playerIndex, onlyLegalPiece);
             }
         }, autoMoveWait);
-    } else {
-        showGameToast(rolledNum === 6 ? `🎉 ${player.name} rolled 6 — choose a highlighted token!` : `🎲 ${player.name} rolled ${rolledNum} — choose a highlighted token.`);
     }
 }
 
@@ -1016,13 +1421,26 @@ function rollPlayerDice(idx) {
 
     playGameSound('diceRoll'); isDiceRolling = true; clearInterval(turnTimerInterval); const gameEpoch = ludoAnimationEpoch;
     let rolledNum = Math.floor(Math.random() * 6) + 1;
-    if (activeGameType === 'ludo' && (consecutiveSixCount[idx] || 0) >= 2 && rolledNum === 6) { rolledNum = Math.floor(Math.random() * 5) + 1; }
-    if (activeGameType === 'snake' && (snakeConsecutiveOnes[idx] || 0) >= 2 && rolledNum === 1) { rolledNum = Math.floor(Math.random() * 5) + 2; showGameToast(`🎲 No three 1s in a row — rolled ${rolledNum}.`); }
+    if (activeGameType === 'ludo' && (consecutiveSixCount[idx] || 0) >= 2 && rolledNum === 6) {
+        rolledNum = Math.floor(Math.random() * 5) + 1;
+    }
+    if (activeGameType === 'snake' && (snakeConsecutiveOnes[idx] || 0) >= 2 && rolledNum === 1) {
+        rolledNum = Math.floor(Math.random() * 5) + 2;
+    }
 
+    activePlayersList[idx].lastRoll = rolledNum;
     const slotEl = document.getElementById(`dice_slot_${idx}`);
-    if (slotEl) { const diceInner = slotEl.querySelector('.pip-dice'); if (diceInner) diceInner.classList.add('physics-tumbling'); }
+    if (slotEl) {
+        slotEl.innerHTML = createPipDiceHTML(rolledNum);
+        const diceInner = slotEl.querySelector('.pip-dice');
+        if (diceInner) diceInner.classList.add('physics-tumbling');
+    }
     const radialCenter = document.getElementById('radialCenterDice');
-    if (radialCenter) { const diceInner = radialCenter.querySelector('.pip-dice'); if (diceInner) diceInner.classList.add('physics-tumbling'); }
+    if (radialCenter) {
+        radialCenter.innerHTML = createPipDiceHTML(rolledNum);
+        const diceInner = radialCenter.querySelector('.pip-dice');
+        if (diceInner) diceInner.classList.add('physics-tumbling');
+    }
 
     setTimeout(async () => {
         if (gameEpoch !== ludoAnimationEpoch) return;
@@ -1030,8 +1448,8 @@ function rollPlayerDice(idx) {
 
         if (activeGameType === 'snake') {
             const player = activePlayersList[idx]; snakeConsecutiveOnes[idx] = rolledNum === 1 ? (snakeConsecutiveOnes[idx] || 0) + 1 : 0; let landingPos = null;
-            if (player.pos === 0) { if (rolledNum === 1) landingPos = 1; else showGameToast(`${player.name}: roll a 1 to enter the board.`); } else {
-                const exactTarget = player.pos + rolledNum; if (exactTarget <= 100) landingPos = exactTarget; else showGameToast(`${player.name}: roll the exact number to reach 100.`);
+            if (player.pos === 0) { if (rolledNum === 1) landingPos = 1; } else {
+                const exactTarget = player.pos + rolledNum; if (exactTarget <= 100) landingPos = exactTarget;
             }
 
             const epoch = ++ludoAnimationEpoch;
@@ -1049,15 +1467,15 @@ function rollPlayerDice(idx) {
             }
 
             if (player.pos === 100) {
-                playGameSound('victory'); snakeMatchWinner = idx; clearTimeout(liveGreatPlayerTimer); liveGreatPlayerIndex = -1; liveGreatPlayerUntil = 0; clearInterval(turnTimerInterval);
+                playGameSound('victory'); snakeMatchWinner = idx; clearTimeout(liveGreatPlayerTimer); clearInterval(liveGreatPlayerInterval); liveGreatPlayerIndex = -1; liveGreatPlayerUntil = 0; clearInterval(turnTimerInterval);
                 ludoMatchFinishedAt = Date.now(); if (!currentMatchResultRecorded) { currentMatchResultRecorded = true; recordCompletedMatch('snake', activePlayersList, idx); }
                 showGameToast(`🏆 ${player.name} reached 100 and finished first!`);
+                startVictoryFireworks3D();
             } else if (rolledNum === 1) {
-                player.turnStartedAt = Date.now(); showGameToast(`🎉 ${player.name} rolled 1 — take another turn!`); resetAndStartTurnTimer();
+                player.turnStartedAt = Date.now(); resetAndStartTurnTimer();
             } else {
                 currentTurnIndex = (currentTurnIndex + 1) % activePlayersList.length; activePlayersList[currentTurnIndex].turnStartedAt = Date.now(); resetAndStartTurnTimer();
             }
-            if (snakeMatchWinner === null) updateLiveGreatPlayer();
             renderFullStage(); if (snakeMatchWinner !== null) removeActiveMatchSave(); else autoSaveActiveMatch(); return;
         }
 
@@ -1065,29 +1483,37 @@ function rollPlayerDice(idx) {
     }, 500);
 }
 
-/* =====================================================================
-   PASS & PLAY TEAM UP (1v1, 2v2) & ONLINE 5-STICKER EXPANSION PACK
-   ===================================================================== */
-
 let bountyKingPlayerIndex = -1;
 let matchBestClutchMoment = null;
-let passPlaySubType = 'individual'; // 'individual' or 'teamup'
+let passPlaySubType = 'individual';
 
-// Inject Team Up options into Pass & Play setup interface dynamically
 function injectPassPlayTeamOptions() {
     const setupBox = document.getElementById('dynamicConfigBox');
-    if (!setupBox || document.getElementById('passPlayModeSelectorBox')) return;
+    if (!setupBox) return;
 
-    const teamHtml = `
-        <div id="passPlayModeSelectorBox" style="margin-top: 16px;">
-            <div class="section-label">Select Match Sub-Type</div>
-            <div class="players-flex-box">
-                <div class="player-slot-btn active" id="ppSubModeIndiv" onclick="setPassPlaySubType('individual')">👤 Individual</div>
-                <div class="player-slot-btn" id="ppSubModeTeam" onclick="setPassPlaySubType('teamup')">👥 Team Up (1v1 / 2v2)</div>
+    const isPassMode = typeof selectedSubMode === 'string' && selectedSubMode.startsWith('pass');
+    let selectorBox = document.getElementById('passPlayModeSelectorBox');
+
+    if (!isPassMode) {
+        if (selectorBox) selectorBox.style.display = 'none';
+        return;
+    }
+
+    if (!selectorBox) {
+        const teamHtml = `
+            <div id="passPlayModeSelectorBox" style="margin-top: 16px;">
+                <div class="section-label">Select Match Sub-Type</div>
+                <div class="players-flex-box">
+                    <div class="player-slot-btn active" id="ppSubModeIndiv" onclick="setPassPlaySubType('individual')">👤 Individual</div>
+                    <div class="player-slot-btn" id="ppSubModeTeam" onclick="setPassPlaySubType('teamup')">👥 Team Up (2v2 Diagonal)</div>
+                </div>
             </div>
-        </div>
-    `;
-    setupBox.insertAdjacentHTML('beforeend', teamHtml);
+        `;
+        setupBox.insertAdjacentHTML('beforeend', teamHtml);
+    } else {
+        selectorBox.style.display = 'block';
+    }
+    setPassPlaySubType(passPlaySubType);
 }
 
 function setPassPlaySubType(subType) {
@@ -1096,8 +1522,31 @@ function setPassPlaySubType(subType) {
     document.getElementById('ppSubModeTeam')?.classList.toggle('active', subType === 'teamup');
 
     const countBox = document.getElementById('playerOptions');
-    if (subType === 'teamup' && countBox) {
-        setPlayerCount(4); // Default to 4 players for 2v2 partnership
+    const customInput = document.getElementById('customPlayerInput');
+
+    if (subType === 'teamup') {
+        if (typeof setPlayerCount === 'function') setPlayerCount(4);
+        matchConfigValue = 4;
+        if (countBox) {
+            Array.from(countBox.children).forEach(btn => {
+                const txt = (btn.textContent || '').trim();
+                if (txt.includes('4')) {
+                    btn.style.display = '';
+                    btn.classList.add('active');
+                } else {
+                    btn.style.display = 'none';
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        if (customInput) customInput.style.display = 'none';
+    } else {
+        if (countBox) {
+            Array.from(countBox.children).forEach(btn => {
+                btn.style.display = '';
+            });
+        }
+        if (customInput) customInput.style.display = '';
     }
 }
 
@@ -1105,11 +1554,21 @@ const _origOpenFullScreenSetup = window.openFullScreenSetup;
 window.openFullScreenSetup = function(gameType) {
     if (typeof _origOpenFullScreenSetup === 'function') _origOpenFullScreenSetup(gameType);
     if (gameType === 'ludo') {
+        passPlaySubType = 'individual';
         setTimeout(injectPassPlayTeamOptions, 50);
     }
 };
 
-// 1. DISTINCT SYNTH SOUND EFFECTS FOR EACH OF THE 5 ONLINE STICKERS
+const _origSelectSubMode = window.selectSubMode;
+if (typeof _origSelectSubMode === 'function') {
+    window.selectSubMode = function(mode) {
+        _origSelectSubMode.apply(this, arguments);
+        if (activeGameType === 'ludo') {
+            setTimeout(injectPassPlayTeamOptions, 30);
+        }
+    };
+}
+
 function playStickerSoundEffect(stickerType) {
     if (!gameSoundEnabled) return;
     const ctx = getGameAudioContext();
@@ -1140,9 +1599,8 @@ function playStickerSoundEffect(stickerType) {
     }
 }
 
-// 2. SHOW BIG STICKER BESIDE SENDER'S PROFILE BADGE WITH SOUND
 function sendProfileSticker(stickerType, emojiChar) {
-    if (ludoMatchIsOffline) return; // Strictly for Online Match
+    if (ludoMatchIsOffline) return;
 
     let myIndex = activePlayersList.findIndex(p => p && p.playerId === getCurrentProfileId());
     if (myIndex < 0) myIndex = currentTurnIndex;
@@ -1169,7 +1627,6 @@ function sendProfileSticker(stickerType, emojiChar) {
     }
 }
 
-// 3. ONLINE-ONLY VISIBILITY FOR STICKERS & ADMIN TOGGLE BUTTON
 function syncOnlineOnlyControls() {
     const isOnlineMatch = !ludoMatchIsOffline && selectedSubMode.startsWith('online');
 
@@ -1192,7 +1649,6 @@ function syncOnlineOnlyControls() {
         arena.appendChild(dock);
     }
 
-    // 5 Stickers ONLY (Icon only, no text)
     dock.innerHTML = `
         <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('haha','😂')" aria-label="Haha">😂</button>
         <button type="button" class="lk-taunt-btn" onclick="sendProfileSticker('cry','😭')" aria-label="Cry">😭</button>
@@ -1204,7 +1660,6 @@ function syncOnlineOnlyControls() {
     dock.style.display = isOnlineMatch ? 'flex' : 'none';
 }
 
-// 4. KING OF THE HILL / BOUNTY HUNT EVALUATOR
 function evaluateBountyAndClutchState() {
     if (activeGameType !== 'ludo' || !activePlayersList.length) return;
 
@@ -1291,7 +1746,6 @@ function evaluateBountyAndClutchState() {
     });
 }
 
-// 5. CLUTCH MOMENT RECORDER & 1-CLICK HD POSTER GENERATOR
 function recordClutchMoment(playerName, title, description, priority = 50) {
     if (!matchBestClutchMoment || priority >= matchBestClutchMoment.priority) {
         matchBestClutchMoment = {
@@ -1325,73 +1779,6 @@ function getBestMatchClutchMoment() {
     };
 }
 
-function downloadClutchMomentCard() {
-    const clutch = getBestMatchClutchMoment();
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 620;
-    const ctx = canvas.getContext('2d');
-
-    const bgGrad = ctx.createLinearGradient(0, 0, 1080, 620);
-    bgGrad.addColorStop(0, '#0f0c29');
-    bgGrad.addColorStop(0.5, '#302b63');
-    bgGrad.addColorStop(1, '#1e1b4b');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 1080, 620);
-
-    ctx.strokeStyle = '#00f2fe';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(24, 24, 1032, 572);
-
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(38, 38, 1004, 544);
-
-    ctx.fillStyle = '#00f2fe';
-    ctx.font = '900 28px "Segoe UI", sans-serif';
-    ctx.fillText('🎬 LUDOPLAY · EPIC CLUTCH HIGHLIGHT', 70, 105);
-
-    ctx.fillStyle = '#fde047';
-    ctx.font = '900 54px "Segoe UI", sans-serif';
-    ctx.fillText(`👑 Epic Clutch by ${clutch.playerName}`, 70, 195);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.fillRect(70, 235, 940, 185);
-    ctx.strokeStyle = 'rgba(0, 242, 254, 0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(70, 235, 940, 185);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 38px "Segoe UI", sans-serif';
-    ctx.fillText(`⚡ ${clutch.title}`, 100, 305);
-
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '600 26px "Segoe UI", sans-serif';
-    ctx.fillText(clutch.description.slice(0, 68), 100, 365);
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 24px "Segoe UI", sans-serif';
-    ctx.fillText(`⏱️ Match Time: ${formatLudoMatchDuration()}   |   🌐 ludoplay-three.vercel.app`, 70, 505);
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '800 22px "Segoe UI", sans-serif';
-    ctx.fillText('© Developed by Fahim Hridoy', 70, 548);
-
-    try {
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `LudoPlay-Clutch-${clutch.playerName.replace(/\s+/g, '-')}.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        showGameToast('📸 Epic Clutch Card downloaded! Share it with friends!');
-    } catch (_) {
-        showGameToast('⚠️ Could not save image on this browser.');
-    }
-}
-
-// 6. HOOK INTO EXISTING GAME LIFECYCLE
 const _origLaunchGameMatch = launchGameMatch;
 launchGameMatch = function () {
     bountyKingPlayerIndex = -1;
@@ -1406,7 +1793,7 @@ renderFullStage = function () {
     syncOnlineOnlyControls();
     evaluateBountyAndClutchState();
 
-    if (ludoMatchWinner !== null && activeGameType === 'ludo') {
+    if (ludoMatchWinner !== null && activeGameType === 'ludo' && !winnerBannerDismissed) {
         const banner = document.querySelector('#arenaStage .ludo-winner-banner');
         if (banner && !banner.querySelector('.ludo-clutch-card')) {
             const clutch = getBestMatchClutchMoment();
@@ -1415,45 +1802,109 @@ renderFullStage = function () {
                     <small>🎬 EPIC CLUTCH MOMENT OF THE MATCH</small>
                     <strong>⚡ ${escapeLudoResultText(clutch.title)}</strong>
                     <p>${escapeLudoResultText(clutch.description)}</p>
-                    <button type="button" class="clutch-download-btn" onclick="downloadClutchMomentCard()">
-                        📸 Download Epic Clutch Card (PNG)
-                    </button>
                 </div>
             `;
-            banner.insertAdjacentHTML('beforeend', clutchHtml);
+            const actionsRow = banner.querySelector('.winner-actions-3d');
+            if (actionsRow) {
+                actionsRow.insertAdjacentHTML('beforebegin', clutchHtml);
+            } else {
+                banner.insertAdjacentHTML('beforeend', clutchHtml);
+            }
         }
     }
 };
 
-/* =====================================================================
-   DUMMY COIN SYSTEM, AI REWARDS & ADMIN PHONE GIFTING EXPANSION
-   ===================================================================== */
+function isUserLoggedIn() {
+    if (!window.currentUser || typeof currentUser !== 'object') return false;
+    const phone = currentUser.phone ? String(currentUser.phone).trim() : '';
+    const name = currentUser.name ? String(currentUser.name).trim() : '';
+    const isGuest = !phone || !name || name.toLowerCase() === 'guest' || name.toLowerCase() === 'you';
+    return !isGuest;
+}
+
+function isCurrentUserAdminAccount() {
+    if (!isUserLoggedIn()) return false;
+    const phone = String(currentUser.phone || '').trim();
+    const name = String(currentUser.name || '').trim().toLowerCase();
+    const adminBtn = document.querySelector('.admin-quick-btn');
+    const adminBtnVisible = Boolean(adminBtn && window.getComputedStyle(adminBtn).display !== 'none');
+    return phone === '01712345678' || phone.toLowerCase() === 'admin' || name === 'admin' || adminBtnVisible;
+}
+
+function getUserCoinStorageKey(phoneStr) {
+    const cleanPhone = String(phoneStr || (currentUser && currentUser.phone) || '').trim();
+    return cleanPhone ? `ludoplay.coins.user.${cleanPhone}` : 'ludoplay.dummy.coins';
+}
 
 function getPlayerDummyCoins() {
+    if (!isUserLoggedIn()) return 0;
+
+    const storageKey = getUserCoinStorageKey();
+
+    if (isCurrentUserAdminAccount()) {
+        try {
+            const currentStored = parseInt(localStorage.getItem(storageKey), 10);
+            if (isNaN(currentStored) || currentStored < 10000000) {
+                localStorage.setItem(storageKey, '10000000');
+            }
+            return parseInt(localStorage.getItem(storageKey), 10) || 10000000;
+        } catch (_) {
+            return 10000000;
+        }
+    }
+
     try {
-        const stored = localStorage.getItem('ludoplay.dummy.coins');
+        const stored = localStorage.getItem(storageKey);
         if (stored !== null) return parseInt(stored, 10) || 0;
     } catch (_) {}
 
-    const phone = currentUser && currentUser.phone ? String(currentUser.phone).trim() : '';
     const initialCoins = 5000;
-    try { localStorage.setItem('ludoplay.dummy.coins', String(initialCoins)); } catch (_) {}
+    try { localStorage.setItem(storageKey, String(initialCoins)); } catch (_) {}
     return initialCoins;
 }
 
-function updateAdminProfileCoinsOnLoad() {
-    const phone = currentUser && currentUser.phone ? String(currentUser.phone).trim() : '';
-    if (phone === '01712345678' || (currentUser && currentUser.name && currentUser.name.toLowerCase().includes('fahim'))) {
-        try { localStorage.setItem('ludoplay.dummy.coins', '10000000'); } catch (_) {}
+function checkAndGrantWelcomeCoins() {
+    if (!isUserLoggedIn()) return;
+
+    const storageKey = getUserCoinStorageKey();
+
+    if (isCurrentUserAdminAccount()) {
+        try {
+            const currentStored = parseInt(localStorage.getItem(storageKey), 10);
+            if (isNaN(currentStored) || currentStored < 10000000) {
+                localStorage.setItem(storageKey, '10000000');
+            }
+        } catch (_) {}
+        return;
     }
+
+    const phone = String(currentUser.phone).trim();
+    const name = String(currentUser.name).trim();
+    const welcomeKey = `ludoplay.welcomed.bonus.${phone}`;
+
+    try {
+        if (!localStorage.getItem(welcomeKey)) {
+            localStorage.setItem(welcomeKey, 'true');
+            if (localStorage.getItem(storageKey) === null) {
+                localStorage.setItem(storageKey, '5000');
+            }
+            setTimeout(() => {
+                if (typeof showGameToast === 'function') {
+                    showGameToast(`🎉 Congratulations ${name}! You received 5,000 Free Coins!`);
+                }
+            }, 400);
+        }
+    } catch (_) {}
 }
-updateAdminProfileCoinsOnLoad();
 
 function modifyActivePlayerCoins(amount) {
+    if (!isUserLoggedIn()) return 0;
     try {
+        const storageKey = getUserCoinStorageKey();
         let current = getPlayerDummyCoins();
         current = Math.max(0, current + amount);
-        localStorage.setItem('ludoplay.dummy.coins', String(current));
+        localStorage.setItem(storageKey, String(current));
+        injectTopBarCoinIndicator();
         return current;
     } catch (_) {
         return 0;
@@ -1466,8 +1917,8 @@ window.recordCompletedMatch = function(gameType, playersList, winnerIndex) {
         _origRecordCompletedMatch2.apply(this, arguments);
     }
     const winner = playersList[winnerIndex];
-    const isMeWinner = winner && (winner.playerId === getCurrentProfileId() || !winner.isAI && winnerIndex === 0);
-    if (isMeWinner && selectedSubMode === 'ai') {
+    const isMeWinner = winner && (winner.playerId === getCurrentProfileId() || (!winner.isAI && winnerIndex === 0));
+    if (isMeWinner && selectedSubMode === 'ai' && isUserLoggedIn()) {
         modifyActivePlayerCoins(1000);
         showGameToast('🎉 Victory against AI! You earned +1000 Dummy Coins! 🪙');
     }
@@ -1476,8 +1927,17 @@ window.recordCompletedMatch = function(gameType, playersList, winnerIndex) {
 function injectTopBarCoinIndicator() {
     const topActions = document.querySelector('.top-actions');
     if (!topActions) return;
+
     let coinPill = document.getElementById('topBarCoinIndicator');
+
+    if (!isUserLoggedIn()) {
+        if (coinPill) coinPill.remove();
+        return;
+    }
+
+    checkAndGrantWelcomeCoins();
     const coins = getPlayerDummyCoins();
+
     if (!coinPill) {
         coinPill = document.createElement('div');
         coinPill.id = 'topBarCoinIndicator';
@@ -1486,48 +1946,7 @@ function injectTopBarCoinIndicator() {
     }
     coinPill.innerHTML = `🪙 ${coins.toLocaleString()}`;
 }
-setInterval(injectTopBarCoinIndicator, 800);
-
-// CLEAN ADMIN HUB WITH 3D NEON POPUPS (GIFT, PLAYERS, NOTICE)
-function injectCleanAdminHubUI() {
-    const adminModalBox = document.querySelector('#adminModal .modal-box');
-    if (!adminModalBox) return;
-
-    const regPlayersGroup = document.getElementById('registeredPlayersList')?.closest('.input-group');
-    if (regPlayersGroup) regPlayersGroup.style.display = 'none';
-    const noticeGroup = document.getElementById('adminNoticeInput')?.closest('.input-group');
-    if (noticeGroup) noticeGroup.style.display = 'none';
-    const oldGiftSec = document.getElementById('adminCoinGiftSection');
-    if (oldGiftSec) oldGiftSec.style.display = 'none';
-
-    if (document.getElementById('adminHubHubMenu')) return;
-
-    adminModalBox.insertAdjacentHTML('beforeend', `
-        <div id="adminHubHubMenu" class="admin-hub-grid" style="margin-top: 14px; margin-bottom: 12px;">
-            <div class="admin-hub-card" onclick="openAdminGiftModal()">
-                <span>🎁</span>
-                <div>
-                    <strong>Gift Coins Panel</strong>
-                    <small>Send dummy coins to registered players by phone</small>
-                </div>
-            </div>
-            <div class="admin-hub-card" onclick="openAdminPlayersModal()">
-                <span>📋</span>
-                <div>
-                    <strong>Registered Players Database</strong>
-                    <small>View and search all user accounts</small>
-                </div>
-            </div>
-            <div class="admin-hub-card" onclick="openAdminNoticeModal()">
-                <span>📢</span>
-                <div>
-                    <strong>Update Live Notice Bar</strong>
-                    <small>Broadcast running announcements to all users</small>
-                </div>
-            </div>
-        </div>
-    `);
-}
+setInterval(injectTopBarCoinIndicator, 500);
 
 function openAdminGiftModal() {
     closeAdminModal();
@@ -1571,10 +1990,16 @@ function executeNeonAdminGift() {
         const regRaw = localStorage.getItem('ludoplay.registered.players');
         const players = regRaw ? JSON.parse(regRaw) : [];
         const found = players.find(p => String(p.phone).trim() === phone);
-        if (!found) {
+        if (!found && phone !== (currentUser && currentUser.phone)) {
             showGameToast('❌ Player with this phone number is not found.');
             return;
         }
+        const targetKey = getUserCoinStorageKey(phone);
+        const existingCoins = parseInt(localStorage.getItem(targetKey), 10);
+        const baseCoins = isNaN(existingCoins) ? 5000 : existingCoins;
+        localStorage.setItem(targetKey, String(baseCoins + amount));
+
+        injectTopBarCoinIndicator();
         showGameToast(`🎁 Successfully gifted ${amount.toLocaleString()} coins to ${phone}!`);
         document.getElementById('neonGiftPhone').value = '';
         document.getElementById('neonGiftAmount').value = '';
@@ -1664,16 +2089,33 @@ function openAdminNoticeModal() {
 
 function executeNeonNoticeUpdate() {
     const val = document.getElementById('neonNoticeInputBox')?.value.trim() || '';
+    const finalVal = val || 'Only offline match available! Please login first and enjoy the game.';
+    
     const mainInput = document.getElementById('adminNoticeInput');
-    if (mainInput) mainInput.value = val;
+    if (mainInput) mainInput.value = finalVal;
+
+    if (globalDb) {
+        globalDb.ref('settings/globalNotice').set(finalVal).then(() => {
+            if (typeof showGameToast === 'function') {
+                showGameToast('📢 Notice broadcasted globally via Firebase!');
+            }
+        }).catch((err) => {
+            console.error("Firebase update error:", err);
+        });
+    }
+
     if (typeof saveAdminSettings === 'function') {
         saveAdminSettings();
     } else {
         const noticeTextEl = document.getElementById('noticeText');
         const noticeBarEl = document.getElementById('noticeBar');
-        if (noticeTextEl) noticeTextEl.textContent = val || '📢 Welcome to LudoPlay! Official Tournament coming soon.';
-        if (noticeBarEl) noticeBarEl.style.display = val ? 'flex' : 'none';
-        try { localStorage.setItem('ludoplay.live.notice', val); } catch (_) {}
+        if (noticeTextEl) noticeTextEl.textContent = `📢 ${finalVal}`;
+        if (noticeBarEl) noticeBarEl.style.display = 'flex';
+        try {
+            localStorage.setItem('ludoplay.live.notice', finalVal);
+            localStorage.setItem('ludoplay.notice', finalVal);
+            localStorage.setItem('adminNotice', finalVal);
+        } catch (_) {}
     }
     showGameToast('📢 Live notice updated successfully!');
     document.getElementById('neonAdminNoticeModal').style.display = 'none';
@@ -1683,4 +2125,123 @@ const _origOpenAdminModal2 = window.openAdminModal || function(){};
 window.openAdminModal = function() {
     _origOpenAdminModal2.apply(this, arguments);
     setTimeout(injectCleanAdminHubUI, 50);
+};
+
+// FIREBASE GLOBAL CONFIG & SYNC
+const firebaseConfig = {
+    apiKey: "AIzaSyDPhuDKjXrta1izBBWC_gAkPtpm9jQkg-M",
+    authDomain: "ludoplayglobal.firebaseapp.com",
+    projectId: "ludoplayglobal",
+    storageBucket: "ludoplayglobal.firebasestorage.app",
+    messagingSenderId: "1082667626449",
+    appId: "1:1082667626449:web:87e3d57b73e35d22b5faf0",
+    measurementId: "G-BP81CD66F5"
+};
+
+let globalFirebaseApp = null;
+let globalDb = null;
+
+if (typeof firebase !== 'undefined') {
+    if (!firebase.apps.length) {
+        globalFirebaseApp = firebase.initializeApp(firebaseConfig);
+    } else {
+        globalFirebaseApp = firebase.app();
+    }
+    globalDb = firebase.database();
+}
+
+if (globalDb) {
+    globalDb.ref('settings/globalNotice').on('value', (snapshot) => {
+        const remoteNotice = snapshot.val();
+        if (remoteNotice) {
+            try {
+                localStorage.setItem('ludoplay.live.notice', remoteNotice);
+                localStorage.setItem('ludoplay.notice', remoteNotice);
+                localStorage.setItem('adminNotice', remoteNotice);
+            } catch (_) {}
+            const noticeTextEl = document.getElementById('noticeText');
+            const noticeBarEl = document.getElementById('noticeBar');
+            if (noticeTextEl) noticeTextEl.textContent = remoteNotice.startsWith('📢') ? remoteNotice : `📢 ${remoteNotice}`;
+            if (noticeBarEl && noticeBarEl.style.display === 'none' && !noticeBarEl.classList.contains('is-dismissing')) {
+                noticeBarEl.style.display = 'flex';
+            }
+        }
+    });
+}
+
+function initRealtimeTrafficTracker() {
+    if (!globalDb) return;
+
+    const visitorRef = globalDb.ref('analytics/totalVisits');
+    visitorRef.transaction((currentVal) => {
+        return (currentVal || 0) + 1;
+    });
+
+    const activeRef = globalDb.ref('analytics/activeUsers');
+    const myConnectionRef = globalDb.ref('analytics/activeUsers/' + Math.random().toString(36).substr(2, 9));
+    
+    myConnectionRef.set(true);
+    myConnectionRef.onDisconnect().remove();
+
+    visitorRef.on('value', (snapshot) => {
+        const total = snapshot.val() || 0;
+        const totalVisitsEl = document.getElementById('totalVisitsVal');
+        if (totalVisitsEl) totalVisitsEl.textContent = total.toLocaleString();
+    });
+
+    activeRef.on('value', (snapshot) => {
+        const activeObj = snapshot.val() || {};
+        const activeCount = Object.keys(activeObj).length;
+        const activeUsersEl = document.getElementById('activeUsersVal');
+        if (activeUsersEl) activeUsersEl.textContent = activeCount;
+    });
+}
+
+setTimeout(initRealtimeTrafficTracker, 1200);
+
+window.injectCleanAdminHubUI = function() {
+    const adminModalBox = document.querySelector('#adminModal .modal-box');
+    if (!adminModalBox) return;
+
+    const regPlayersGroup = document.getElementById('registeredPlayersList')?.closest('.input-group');
+    if (regPlayersGroup) regPlayersGroup.style.display = 'none';
+    const noticeGroup = document.getElementById('adminNoticeInput')?.closest('.input-group');
+    if (noticeGroup) noticeGroup.style.display = 'none';
+    const oldGiftSec = document.getElementById('adminCoinGiftSection');
+    if (oldGiftSec) oldGiftSec.style.display = 'none';
+
+    if (document.getElementById('adminHubHubMenu')) return;
+
+    adminModalBox.insertAdjacentHTML('beforeend', `
+        <div id="adminHubHubMenu" class="admin-hub-grid" style="margin-top: 14px; margin-bottom: 12px;">
+            <div class="admin-hub-card" onclick="openAdminGiftModal()">
+                <span>🎁</span>
+                <div>
+                    <strong>Gift Coins Panel</strong>
+                    <small>Send dummy coins to registered players by phone</small>
+                </div>
+            </div>
+            <div class="admin-hub-card" onclick="openAdminPlayersModal()">
+                <span>📋</span>
+                <div>
+                    <strong>Registered Players Database</strong>
+                    <small>View and search all user accounts</small>
+                </div>
+            </div>
+            <div class="admin-hub-card" onclick="openAdminNoticeModal()">
+                <span>📢</span>
+                <div>
+                    <strong>Update Live Notice Bar</strong>
+                    <small>Broadcast running announcements to all users</small>
+                </div>
+            </div>
+        </div>
+        <div class="admin-traffic-card" style="background: rgba(15,23,42,0.8); padding: 14px; border-radius: 12px; margin-top: 12px; border: 1px solid rgba(0,242,254,0.4);">
+            <div style="font-size: 13px; font-weight: 800; color: #00f2fe; margin-bottom: 8px;">📊 LIVE TRAFFIC ANALYTICS</div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; color: #fff;">
+                <span>🟢 Active Users: <strong id="activeUsersVal" style="color: #22c55e;">0</strong></span>
+                <span>👥 Total Visits: <strong id="totalVisitsVal" style="color: #fde047;">0</strong></span>
+            </div>
+        </div>
+    `);
 };

@@ -1338,3 +1338,208 @@ html, body {
     from { opacity: 0; transform: scale(0.88); }
     to { opacity: 1; transform: scale(1); }
 }
+/* =========================================================
+   3D NEON CAPTURE SHOCKWAVE & FAST SLIDING TOKEN GLOW
+   ========================================================= */
+.board-cell.capture-neon-burst {
+    z-index: 28 !important;
+    background: radial-gradient(circle, #ffffff 0%, #00f2fe 45%, #ff007f 85%, transparent 100%) !important;
+    box-shadow: 
+        0 0 22px #00f2fe,
+        0 0 42px #ff007f,
+        inset 0 0 18px #ffffff !important;
+    animation: ludoCaptureNeonBurst 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.board-cell.capture-neon-burst::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 3px solid #00f2fe;
+    box-shadow: 0 0 20px #00f2fe, inset 0 0 12px #ff007f;
+    animation: ludoCaptureShockwave 0.55s ease-out forwards;
+    pointer-events: none;
+    z-index: 30;
+}
+
+@keyframes ludoCaptureNeonBurst {
+    0%   { transform: scale(1) translateZ(0); filter: brightness(1.8); }
+    45%  { transform: scale(1.26) translateZ(16px); filter: brightness(2.2) drop-shadow(0 0 16px #00f2fe); }
+    100% { transform: scale(1) translateZ(0); filter: brightness(1); }
+}
+
+@keyframes ludoCaptureShockwave {
+    0%   { transform: scale(0.4); opacity: 1; }
+    100% { transform: scale(2.35); opacity: 0; }
+}
+
+.lk-pin-token.returning-glide-token {
+    z-index: 35 !important;
+    transform: scale(1.18) translateY(-4px) !important;
+    filter: 
+        drop-shadow(0 0 4px #ffffff)
+        drop-shadow(0 0 12px #00f2fe)
+        drop-shadow(0 0 22px #ff007f) !important;
+    transition: none !important;
+}
+/* =========================================================
+   HD CRISP WINNER POPUP, 3D ACTION BUTTONS & 3D FIREWORKS
+   ========================================================= */
+
+.ludo-winner-banner {
+    pointer-events: auto !important;
+    transform: translate(-50%, -50%) !important;
+    transform-style: flat !important;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    width: min(94%, 440px) !important;
+    padding: 22px 20px 20px !important;
+    border: 2.5px solid #00f2fe !important;
+    border-radius: 24px !important;
+    background: linear-gradient(160deg, #090d1e 0%, #111a3a 52%, #1e1136 100%) !important;
+    box-shadow: 
+        0 24px 60px rgba(0, 0, 0, 0.92),
+        0 0 38px rgba(0, 242, 254, 0.45),
+        inset 0 1.5px 0 rgba(255, 255, 255, 0.35) !important;
+    z-index: 45 !important;
+}
+
+.winner-popup-close-3d {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    background: linear-gradient(145deg, #ef4444, #b91c1c);
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 0 #7f1d1d, 0 6px 14px rgba(239, 68, 68, 0.5);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 5;
+}
+
+.winner-popup-close-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #7f1d1d, 0 0 18px rgba(239, 68, 68, 0.8);
+}
+
+.winner-popup-close-3d:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #7f1d1d;
+}
+
+.ludo-winner-banner strong {
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    color: #fde047 !important;
+    letter-spacing: 0.16em !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85) !important;
+}
+
+.ludo-winner-banner .winner-name {
+    font-size: 24px !important;
+    font-weight: 900 !important;
+    color: #ffffff !important;
+    letter-spacing: 0.03em;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9) !important;
+}
+
+.ludo-leaderboard-name,
+.ludo-leaderboard-score,
+.ludo-leaderboard-rank {
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.ludo-clutch-card {
+    border: 1.5px solid rgba(0, 242, 254, 0.7) !important;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(46, 16, 101, 0.75)) !important;
+    padding: 12px 14px !important;
+}
+
+.ludo-clutch-card strong {
+    font-size: 14px !important;
+    color: #fde047 !important;
+}
+
+.ludo-clutch-card p {
+    font-size: 12px !important;
+    color: #f8fafc !important;
+    font-weight: 600;
+}
+
+/* 3D Action Buttons at Bottom of Winner Popup */
+.winner-actions-3d {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.winner-btn-3d {
+    padding: 12px 10px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.winner-btn-3d.play-again-3d {
+    border: 1.5px solid #a7f3d0;
+    background: linear-gradient(135deg, #10b981 0%, #059669 55%, #047857 100%);
+    box-shadow: 0 5px 0 #064e3b, 0 8px 20px rgba(16, 185, 129, 0.45);
+}
+
+.winner-btn-3d.play-again-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 #064e3b, 0 0 22px rgba(16, 185, 129, 0.75);
+}
+
+.winner-btn-3d.back-home-3d {
+    border: 1.5px solid #bae6fd;
+    background: linear-gradient(135deg, #00f2fe 0%, #3b82f6 55%, #1d4ed8 100%);
+    box-shadow: 0 5px 0 #1e3a8a, 0 8px 20px rgba(59, 130, 246, 0.45);
+}
+
+.winner-btn-3d.back-home-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 #1e3a8a, 0 0 22px rgba(0, 242, 254, 0.75);
+}
+
+.winner-btn-3d:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #0f172a !important;
+}
+
+/* 3D Fireworks Canvas Overlay */
+.ludo-fireworks-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 42;
+}
