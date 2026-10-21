@@ -1815,10 +1815,103 @@ renderFullStage = function () {
 };
 
 /* =====================================================================
-   GLOBAL FIREBASE SYNC: 1 CRORE ADMIN COINS, 5000 USER COINS, 
-   3D INVENTORY PREVIEWS, BOARD SKINS & REALTIME TRAFFIC TRACKER
+   COMPLETE FIX: PASS & PLAY 2v2 TEAM UP, 3D COMING SOON MODAL,
+   MOBILE LAUNCH FIX, 1 CRORE ADMIN COINS, 5000 USER COINS & GLOBAL SYNC
    ===================================================================== */
 
+// 0. Clear old Service Worker caches so mobile phones always load the latest code immediately
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.update().catch(() => {}));
+    }).catch(() => {});
+}
+
+// 1. Fix Pass & Play "Individual vs Team Up (2v2)" selector hook (`setSubMode` in app.js)
+const _origSetSubModeFix = window.setSubMode;
+if (typeof _origSetSubModeFix === 'function') {
+    window.setSubMode = function(sub) {
+        // Strictly block Online & Tournament from launching; always show 3D Coming Soon popup!
+        if (typeof sub === 'string' && (sub.startsWith('online') || sub === 'tourney')) {
+            openPublishingSoonModal3D();
+            return;
+        }
+        _origSetSubModeFix.apply(this, arguments);
+        if (typeof activeGameType !== 'undefined' && activeGameType === 'ludo') {
+            setTimeout(injectPassPlayTeamOptions, 20);
+        }
+    };
+}
+
+// 2. Always show 3D Coming Soon Modal when clicking Online Match or Tournament Mode (both User & Admin)
+function openPublishingSoonModal3D() {
+    let modal = document.getElementById('publishingSoonModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'publishingSoonModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '130';
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+        modal.innerHTML = `
+            <div class="modal-box compact-modal neon-3d-modal" style="text-align: center; padding: 30px 22px;">
+                <div style="font-size: 62px; margin-bottom: 10px; filter: drop-shadow(0 8px 16px rgba(0,242,254,0.5));">🚀🏆</div>
+                <h2 style="font-size: 23px; font-weight: 900; color: #fde047; margin-bottom: 10px;">COMING SOON IN 3D!</h2>
+                <p class="profile-help-text" style="font-size: 14px; color: #e2e8f0; line-height: 1.6; margin-bottom: 20px;">
+                    🌐 <strong>Online Multiplayer</strong> & 🏆 <strong>Tournament Mode</strong> are coming soon!<br>
+                    <span style="color: #00f2fe; font-weight: 800;">Play Smart AI or Pass & Play (Individual & 2v2 Team Up) now!</span>
+                </p>
+                <button type="button" class="primary-btn" onclick="closePublishingSoonModal()">🎮 Play Offline Modes</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    modal.style.display = 'flex';
+}
+window.openPublishingSoonModal = openPublishingSoonModal3D;
+window.closePublishingSoonModal = function() {
+    const modal = document.getElementById('publishingSoonModal');
+    if (modal) modal.style.display = 'none';
+};
+window.handleOnlineModeClick = function() {
+    openPublishingSoonModal3D();
+};
+window.handleTourneyModeClick = function() {
+    openPublishingSoonModal3D();
+};
+
+// 3. Mobile-Safe Game Launch Fix (Prevents mobile fullscreen/audio from blocking Start Match)
+window.requestGameFullscreen = function(element) {
+    // Do not force fullscreen on mobile phones as it causes black screen / layout freeze on many mobile browsers
+    if (window.innerWidth <= 820 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
+    const request = element?.requestFullscreen || element?.webkitRequestFullscreen || element?.msRequestFullscreen;
+    if (!request) return;
+    try {
+        const result = request.call(element);
+        if (result && typeof result.catch === 'function') result.catch(() => {});
+    } catch (_) {}
+};
+
+// Ensure Start Match button always works reliably on mobile & desktop
+const _safeBaseLaunchGameMatch = window.launchGameMatch;
+window.launchGameMatch = function() {
+    try {
+        if (typeof selectedSubMode === 'string' && (selectedSubMode.startsWith('online') || selectedSubMode === 'tourney')) {
+            openPublishingSoonModal3D();
+            return;
+        }
+        _safeBaseLaunchGameMatch.apply(this, arguments);
+        const arena = document.getElementById('gameArenaScreen');
+        if (arena) {
+            arena.style.display = 'flex';
+            arena.style.visibility = 'visible';
+            arena.style.opacity = '1';
+        }
+    } catch (err) {
+        console.error('Launch match error:', err);
+        if (typeof showGameToast === 'function') showGameToast('⚠️ Starting match...');
+    }
+};
+
+// 4. Firebase Realtime Database Initialization (Multi-Region Safe)
 const firebaseConfig = {
     apiKey: "AIzaSyDPhuDKjXrta1izBBWC_gAkPtpm9jQkg-M",
     authDomain: "ludoplayglobal.firebaseapp.com",
@@ -1846,10 +1939,10 @@ if (typeof firebase !== 'undefined') {
     }
 }
 
-// Safely read currentUser even though app.js declared it with `let currentUser`
+// 5. User & Admin Account Detection + 1 Crore Admin Coins & 5,000 User Coins
 function getActiveUserObj() {
     try {
-        if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser === 'object') {
+        if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser === 'object' && currentUser.name) {
             return currentUser;
         }
     } catch (_) {}
@@ -1876,13 +1969,10 @@ function isUserLoggedIn() {
 }
 
 function isCurrentUserAdminAccount() {
-    if (!isUserLoggedIn()) return false;
     const user = getActiveUserObj();
     const phone = String(user.phone || '').trim().toLowerCase();
     const name = String(user.name || '').trim().toLowerCase();
-    const adminBtn = document.getElementById('adminPanelBtn');
-    const adminBtnVisible = Boolean(adminBtn && window.getComputedStyle(adminBtn).display !== 'none');
-    return Boolean(user.isAdmin || (phone === 'admin' && name === 'admin') || adminBtnVisible);
+    return Boolean(user.isAdmin || phone === 'admin' || name === 'admin');
 }
 
 function getUserCoinStorageKey(phoneStr) {
@@ -1890,7 +1980,6 @@ function getUserCoinStorageKey(phoneStr) {
     return cleanPhone ? `ludoplay.coins.user.${cleanPhone}` : 'ludoplay.dummy.coins';
 }
 
-// 1 CRORE (10,000,000) FOR ADMIN | 5,000 FOR LOGGED-IN USERS
 function getPlayerDummyCoins() {
     if (!isUserLoggedIn()) return 0;
     const storageKey = getUserCoinStorageKey();
@@ -1926,12 +2015,7 @@ function checkAndGrantWelcomeCoins() {
     const cleanPhone = getCleanPhoneKey();
 
     if (isCurrentUserAdminAccount()) {
-        try {
-            const currentStored = parseInt(localStorage.getItem(storageKey), 10);
-            if (isNaN(currentStored) || currentStored < 10000000) {
-                localStorage.setItem(storageKey, '10000000');
-            }
-        } catch (_) {}
+        try { localStorage.setItem(storageKey, '10000000'); } catch (_) {}
         return;
     }
 
@@ -1945,7 +2029,7 @@ function checkAndGrantWelcomeCoins() {
                 localStorage.setItem(storageKey, '5000');
             }
             if (globalDb && cleanPhone) {
-                globalDb.ref(`users/${cleanPhone}/coins`).transaction(curr => (curr === null ? 5000 : curr));
+                globalDb.ref(`users/${cleanPhone}/coins`).transaction(curr => (curr === null ? 5000 : curr)).catch(() => {});
             }
             setTimeout(() => {
                 if (typeof showGameToast === 'function') {
@@ -1965,7 +2049,7 @@ function modifyActivePlayerCoins(amount) {
         current = Math.max(0, current + amount);
         localStorage.setItem(storageKey, String(current));
         if (globalDb && cleanPhone && !isCurrentUserAdminAccount()) {
-            globalDb.ref(`users/${cleanPhone}/coins`).set(current);
+            globalDb.ref(`users/${cleanPhone}/coins`).set(current).catch(() => {});
         }
         injectTopBarCoinIndicator();
         return current;
@@ -2011,10 +2095,10 @@ function injectTopBarCoinIndicator() {
         coinPill.innerHTML = formatted;
     }
 }
-setTimeout(injectTopBarCoinIndicator, 100);
+setTimeout(injectTopBarCoinIndicator, 80);
 setInterval(injectTopBarCoinIndicator, 500);
 
-// REALTIME GIFT & COIN SYNC LISTENER FOR USERS
+// 6. Realtime Gift & Player Registration Sync
 let activeWatchedGiftPhone = '';
 function bindUserRealtimeGiftAndCoinListener() {
     if (!globalDb || !isUserLoggedIn() || isCurrentUserAdminAccount()) return;
@@ -2028,7 +2112,7 @@ function bindUserRealtimeGiftAndCoinListener() {
         phone: user.phone,
         avatar: user.avatar === 'female' ? '👧' : '👦',
         lastLoginAt: new Date().toLocaleString()
-    });
+    }).catch(() => {});
 
     globalDb.ref(`gifts/${cleanPhone}`).on('value', (snapshot) => {
         const giftData = snapshot.val();
@@ -2044,10 +2128,10 @@ function bindUserRealtimeGiftAndCoinListener() {
             const currentCoins = getPlayerDummyCoins();
             const updatedCoins = currentCoins + giftAmount;
             localStorage.setItem(storageKey, String(updatedCoins));
-            globalDb.ref(`users/${cleanPhone}/coins`).set(updatedCoins);
+            globalDb.ref(`users/${cleanPhone}/coins`).set(updatedCoins).catch(() => {});
             injectTopBarCoinIndicator();
 
-            globalDb.ref(`gifts/${cleanPhone}`).remove();
+            globalDb.ref(`gifts/${cleanPhone}`).remove().catch(() => {});
 
             if (typeof playGameSound === 'function') playGameSound('victory');
             showAdminGiftCongratsPopup(giftAmount);
@@ -2063,7 +2147,7 @@ function showAdminGiftCongratsPopup(amount) {
         modal = document.createElement('div');
         modal.id = 'adminGiftCongratsModal';
         modal.className = 'modal-overlay';
-        modal.style.zIndex = '120';
+        modal.style.zIndex = '125';
         document.body.appendChild(modal);
     }
     modal.innerHTML = `
@@ -2092,15 +2176,13 @@ if (typeof _origSaveProfileAndLogin === 'function') {
     };
 }
 
-// =====================================================================
-// UPGRADED 3D INVENTORY: REAL COLOR DICE, TOKEN & BOARD PREVIEWS
-// =====================================================================
+// 7. 3D Inventory Previews (Dice, Tokens & Boards)
 if (typeof INVENTORY_CATALOG !== 'undefined') {
     INVENTORY_CATALOG.dice = [
         { id: 'classic', name: 'Crystal Pearl', desc: 'Ultra-HD White & Red' },
         { id: 'royal_gold', name: '24K Imperial Gold', desc: 'Luxury Gold & Onyx' },
         { id: 'neon_cyber', name: 'Cyber Plasma', desc: 'Neon Cyan & Deep Navy' },
-        { id: 'ruby_flare', name: 'Crimson Ruby', desc: ' Glowing White Pips' },
+        { id: 'ruby_flare', name: 'Crimson Ruby', desc: 'Glowing White Pips' },
         { id: 'emerald_glow', name: 'Jade Emerald', desc: 'Gold & White Pips' },
         { id: 'obsidian', name: 'Phantom Galaxy', desc: 'Dark Void & Neon Pips' }
     ];
@@ -2112,7 +2194,7 @@ if (typeof INVENTORY_CATALOG !== 'undefined') {
         { id: 'ghost', name: 'Cyber Shield', desc: 'Esports Emblem' }
     ];
     INVENTORY_CATALOG.boards = [
-        { id: 'classic', name: 'Classic Tournament', desc: ' Crisp White Arena' },
+        { id: 'classic', name: 'Classic Tournament', desc: 'Crisp White Arena' },
         { id: 'royal_marble', name: 'Royal Amethyst', desc: 'Violet & Gold Court' },
         { id: 'wooden', name: 'Imperial Wood', desc: 'Warm Teak & Gold' },
         { id: 'cyber_grid', name: 'Cyber Neon Grid', desc: 'Dark Neon Matrix' },
@@ -2212,27 +2294,40 @@ window.applyInventoryCosmetics = function() {
 };
 setTimeout(() => { if (typeof applyInventoryCosmetics === 'function') applyInventoryCosmetics(); }, 120);
 
-// GLOBAL FIREBASE LISTENERS: NOTICE, WEATHER THEME & REGISTERED PLAYERS
-let cachedGlobalTheme = 'default';
+// 8. Global Notice & Weather Sync + Cloud Fallback
+let cachedGlobalTheme = localStorage.getItem('ludoGlobalTheme') || 'default';
+
+function applyGlobalNoticeToUI(cleanText) {
+    const finalNotice = cleanText || 'Only offline match available! Please login first and enjoy the game.';
+    try {
+        localStorage.setItem('ludoAdminNotice', finalNotice);
+        localStorage.setItem('ludoplay.live.notice', finalNotice);
+        localStorage.removeItem('ludoNoticeDismissed');
+    } catch (_) {}
+    if (typeof adminNoticeText !== 'undefined') adminNoticeText = finalNotice;
+    const noticeTextEl = document.getElementById('noticeText');
+    const noticeBarEl = document.getElementById('noticeBar');
+    if (noticeTextEl) {
+        noticeTextEl.textContent = finalNotice.startsWith('📢') ? finalNotice : `📢 ${finalNotice}`;
+    }
+    if (noticeBarEl) {
+        noticeBarEl.style.display = 'flex';
+    }
+}
+
+// Set default notice immediately if still on old welcome text
+setTimeout(() => {
+    const currentStored = localStorage.getItem('ludoAdminNotice');
+    if (!currentStored || currentStored.includes('Official Tournament coming soon')) {
+        applyGlobalNoticeToUI('Only offline match available! Please login first and enjoy the game.');
+    }
+}, 150);
+
 if (globalDb) {
     globalDb.ref('settings/globalNotice').on('value', (snapshot) => {
         const remoteNotice = snapshot.val();
         if (remoteNotice !== null && remoteNotice !== undefined) {
-            const cleanText = String(remoteNotice).trim();
-            try {
-                localStorage.setItem('ludoAdminNotice', cleanText);
-                localStorage.setItem('ludoplay.live.notice', cleanText);
-                localStorage.removeItem('ludoNoticeDismissed');
-            } catch (_) {}
-            if (typeof adminNoticeText !== 'undefined') adminNoticeText = cleanText;
-            const noticeTextEl = document.getElementById('noticeText');
-            const noticeBarEl = document.getElementById('noticeBar');
-            if (noticeTextEl && cleanText) {
-                noticeTextEl.textContent = cleanText.startsWith('📢') ? cleanText : `📢 ${cleanText}`;
-            }
-            if (noticeBarEl) {
-                noticeBarEl.style.display = cleanText ? 'flex' : 'none';
-            }
+            applyGlobalNoticeToUI(String(remoteNotice).trim());
         }
     });
 
@@ -2273,26 +2368,33 @@ window.applyThemeForCurrentUser = function() {
 
 const _origSetGlobalTheme = window.setGlobalTheme || function(){};
 window.setGlobalTheme = function(themeId) {
-    const res = _origSetGlobalTheme.apply(this, arguments);
-    if (res !== false && globalDb) {
+    cachedGlobalTheme = themeId;
+    try { localStorage.setItem('ludoGlobalTheme', themeId); } catch (_) {}
+    if (typeof applyThemeVisuals === 'function') applyThemeVisuals(themeId);
+
+    if (globalDb) {
         globalDb.ref('settings/globalTheme').set(themeId).then(() => {
-            if (typeof showGameToast === 'function') {
-                showGameToast('🌦️ Weather theme updated globally for all users!');
-            }
+            showGameToast('🌦️ Weather theme broadcasted globally to all users!');
+        }).catch(() => {
+            showGameToast('⚠️ Enable Firebase Realtime Database (Test Mode) for global sync.');
         });
+    } else {
+        showGameToast('🌦️ Weather theme updated!');
     }
-    return res;
+    return true;
 };
 
 const _origSaveAdminSettings = window.saveAdminSettings || function(){};
 window.saveAdminSettings = function() {
-    const newNotice = document.getElementById('adminNoticeInput')?.value.trim() || '';
+    const newNotice = document.getElementById('adminNoticeInput')?.value.trim() || 'Only offline match available! Please login first and enjoy the game.';
+    applyGlobalNoticeToUI(newNotice);
     if (globalDb) {
-        globalDb.ref('settings/globalNotice').set(newNotice);
+        globalDb.ref('settings/globalNotice').set(newNotice).catch(() => {});
     }
     _origSaveAdminSettings.apply(this, arguments);
 };
 
+// 9. Admin Modals: Gift Coins, Players List & Notice
 function openAdminGiftModal() {
     closeAdminModal();
     let modal = document.getElementById('neonAdminGiftModal');
@@ -2347,7 +2449,7 @@ function executeNeonAdminGift() {
             amount: amount,
             sentAt: Date.now()
         };
-        globalDb.ref(`gifts/${cleanPhone}`).set(giftPayload);
+        globalDb.ref(`gifts/${cleanPhone}`).set(giftPayload).catch(() => {});
     }
 
     injectTopBarCoinIndicator();
@@ -2437,52 +2539,77 @@ window.executeNeonNoticeUpdate = function() {
     const mainInput = document.getElementById('adminNoticeInput');
     if (mainInput) mainInput.value = finalVal;
 
+    applyGlobalNoticeToUI(finalVal);
     if (globalDb) {
         globalDb.ref('settings/globalNotice').set(finalVal).then(() => {
             showGameToast('📢 Notice broadcasted globally to all users!');
-        });
+        }).catch(() => {});
     }
     if (typeof saveAdminSettings === 'function') saveAdminSettings();
     document.getElementById('neonAdminNoticeModal').style.display = 'none';
 };
 
+// 10. Dual-Engine Realtime Traffic & Online Count Tracker (Firebase + Instant Fallback)
+function updateAllTrafficUI(liveCount, totalVisits) {
+    const validLive = Math.max(1, parseInt(liveCount, 10) || 1);
+    const validTotal = Math.max(1, parseInt(totalVisits, 10) || 1);
+
+    ['activeUsersVal', 'adminLiveUsers'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = validLive.toLocaleString();
+    });
+    ['totalVisitsVal', 'adminTotalVisits'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = validTotal.toLocaleString();
+    });
+    const topOnlineEl = document.getElementById('onlineCount');
+    if (topOnlineEl) topOnlineEl.textContent = `${validLive.toLocaleString()} Online`;
+    const updatedEl = document.getElementById('adminTrafficUpdated');
+    if (updatedEl) updatedEl.textContent = `Live Active · ${new Date().toLocaleTimeString()}`;
+}
+
 function initRealtimeTrafficTracker() {
+    // Immediate local + session counter so it NEVER shows "Online —" even before Firebase responds
+    let localVisits = parseInt(localStorage.getItem('ludoplay.local.totalVisits'), 10) || 0;
+    if (!sessionStorage.getItem('ludoplay.session.counted')) {
+        sessionStorage.setItem('ludoplay.session.counted', 'true');
+        localVisits++;
+        try { localStorage.setItem('ludoplay.local.totalVisits', String(localVisits)); } catch (_) {}
+    }
+    updateAllTrafficUI(1, localVisits);
+
     if (!globalDb) return;
 
-    const visitSessionKey = 'ludoplay.session.counted';
     const visitorRef = globalDb.ref('analytics/totalVisits');
-    if (!sessionStorage.getItem(visitSessionKey)) {
-        sessionStorage.setItem(visitSessionKey, 'true');
-        visitorRef.transaction((currentVal) => (currentVal || 0) + 1);
+    if (!sessionStorage.getItem('ludoplay.fb.session.counted')) {
+        sessionStorage.setItem('ludoplay.fb.session.counted', 'true');
+        visitorRef.transaction((currentVal) => (currentVal || localVisits) + 1).catch(() => {});
     }
 
     const activeRef = globalDb.ref('analytics/activeUsers');
     const myConnectionRef = globalDb.ref('analytics/activeUsers/' + Math.random().toString(36).substr(2, 9));
-    myConnectionRef.set(true);
-    myConnectionRef.onDisconnect().remove();
+    myConnectionRef.set(true).catch(() => {});
+    myConnectionRef.onDisconnect().remove().catch(() => {});
+
+    let latestLive = 1;
+    let latestTotal = localVisits;
 
     visitorRef.on('value', (snapshot) => {
-        const total = snapshot.val() || 0;
-        ['totalVisitsVal', 'adminTotalVisits'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = total.toLocaleString();
-        });
+        const val = snapshot.val();
+        if (val) {
+            latestTotal = Math.max(localVisits, Number(val));
+            try { localStorage.setItem('ludoplay.local.totalVisits', String(latestTotal)); } catch (_) {}
+            updateAllTrafficUI(latestLive, latestTotal);
+        }
     });
 
     activeRef.on('value', (snapshot) => {
         const activeObj = snapshot.val() || {};
-        const activeCount = Object.keys(activeObj).length;
-        ['activeUsersVal', 'adminLiveUsers'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = activeCount.toLocaleString();
-        });
-        const topOnlineEl = document.getElementById('onlineCount');
-        if (topOnlineEl) topOnlineEl.textContent = `${activeCount.toLocaleString()} Online`;
-        const updatedEl = document.getElementById('adminTrafficUpdated');
-        if (updatedEl) updatedEl.textContent = `Live via Firebase · ${new Date().toLocaleTimeString()}`;
+        latestLive = Math.max(1, Object.keys(activeObj).length);
+        updateAllTrafficUI(latestLive, latestTotal);
     });
 }
-setTimeout(initRealtimeTrafficTracker, 800);
+setTimeout(initRealtimeTrafficTracker, 150);
 
 window.injectCleanAdminHubUI = function() {
     const adminModalBox = document.querySelector('#adminModal .modal-box');

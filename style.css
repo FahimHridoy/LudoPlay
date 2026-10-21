@@ -1879,3 +1879,81 @@ html, body {
     background: linear-gradient(135deg, #e2e8f0, #cbd5e1) !important;
     border: 2px solid #facc15 !important;
 }
+/* =========================================================
+   MOBILE TOP BAR & MOBILE GAME ARENA BOARD FIX
+   ========================================================= */
+
+.top-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 8px 14px !important;
+    gap: 8px !important;
+    background: linear-gradient(90deg, rgba(11, 19, 43, 0.96), rgba(30, 27, 75, 0.96)) !important;
+    border-bottom: 1.5px solid rgba(0, 242, 254, 0.35) !important;
+    z-index: 35 !important;
+}
+
+.top-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+}
+
+@media (max-width: 720px) {
+    .top-bar {
+        display: grid !important;
+        grid-template-columns: auto 1fr !important;
+        align-items: center !important;
+        padding: 7px 10px !important;
+        gap: 6px !important;
+    }
+
+    .online-badge {
+        grid-column: 1 / 2 !important;
+        height: 28px !important;
+        padding: 0 9px !important;
+        font-size: 11px !important;
+        border-radius: 999px !important;
+    }
+
+    .top-actions {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)) !important;
+        gap: 5px !important;
+    }
+
+    .top-bar .icon-btn,
+    .top-bar .top-coin-pill {
+        width: 100% !important;
+        height: 30px !important;
+        padding: 0 6px !important;
+        font-size: 10.5px !important;
+        border-radius: 8px !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Hide 'Add to Home' on tiny screens if 5 buttons crowd the bar */
+    .install-app-btn {
+        display: none !important;
+    }
+
+    /* Ensure Ludo board is always visible and properly sized on mobile phones */
+    .lk-board-box {
+        width: min(95vw, calc(100vh - 150px)) !important;
+        height: min(95vw, calc(100vh - 150px)) !important;
+        min-width: 270px !important;
+        min-height: 270px !important;
+    }
+    .lk-hud-row {
+        width: min(95vw, calc(100vh - 150px)) !important;
+        min-width: 270px !important;
+    }
+}

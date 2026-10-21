@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="LudoPlay">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="style.css?v=20261020final">
+    <link rel="stylesheet" href="style.css?v=20261022pro">
 </head>
 <body>
 <!-- Firebase App SDK -->
@@ -473,10 +473,27 @@
 
     <footer class="home-footer">
         <span class="dev-signature" id="devFooter" onclick="triggerAdminTap()">©Developed by Fahim Hridoy</span>
+<!-- 3D COMING SOON MODAL FOR ONLINE MATCH & TOURNAMENT -->
+    <div class="modal-overlay" id="publishingSoonModal" onclick="if(event.target === this) closePublishingSoonModal()">
+        <div class="modal-box compact-modal neon-3d-modal" style="text-align: center; padding: 30px 22px;">
+            <div style="font-size: 62px; margin-bottom: 10px; filter: drop-shadow(0 8px 16px rgba(0,242,254,0.5)); animation: floatIcon 2.5s ease-in-out infinite;">🚀🏆</div>
+            <h2 style="font-size: 24px; font-weight: 900; background: linear-gradient(90deg, #fde047, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: 1px;">COMING SOON IN 3D!</h2>
+            <p class="profile-help-text" style="font-size: 14px; color: #e2e8f0; line-height: 1.6; margin-bottom: 20px;">
+                🌐 <strong>Online Multiplayer</strong> & 🏆 <strong>Global Tournament Mode</strong> are currently under final development!<br>
+                <span style="color: #fde047; font-weight: 800;">Enjoy Smart AI & Pass & Play (Individual & 2v2 Team Up) matches right now!</span>
+            </p>
+            <button type="button" class="primary-btn" onclick="closePublishingSoonModal()">🎮 Got It! Play Offline Now</button>
+        </div>
+    </div>
+
+    <footer class="home-footer">
+        <span class="dev-signature" id="devFooter" onclick="triggerAdminTap()">©Developed by Fahim Hridoy</span>
     </footer>
 
-    <script src="app.js?v=20261020final"></script>
-    <script src="ludo.js?v=20261020final"></script>
-    <script src="snake.js?v=20261020final"></script>
+    <script src="app.js?v=20261022pro"></script>
+    <script src="ludo.js?v=20261022pro"></script>
+    <script src="snake.js?v=20261022pro"></script>
+</body>
+</html>
 </body>
 </html>
