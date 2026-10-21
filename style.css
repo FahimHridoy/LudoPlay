@@ -1543,3 +1543,339 @@ html, body {
     pointer-events: none;
     z-index: 42;
 }
+/* =========================================================
+   RESPONSIVE & ORGANIZED TOP MENU BAR FOR ALL DEVICES
+   ========================================================= */
+
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 18px !important;
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.88), rgba(30, 27, 75, 0.88)) !important;
+    border-bottom: 1px solid rgba(0, 242, 254, 0.28) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    flex-wrap: nowrap;
+}
+
+.top-bar .icon-btn,
+.top-bar .top-coin-pill,
+.top-bar .online-badge {
+    height: 34px;
+    padding: 0 11px;
+    border-radius: 999px !important;
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+@media (max-width: 680px) {
+    .top-bar {
+        flex-wrap: wrap !important;
+        padding: 8px 10px !important;
+        gap: 6px !important;
+    }
+
+    .online-badge {
+        height: 30px !important;
+        padding: 0 10px !important;
+        font-size: 11px !important;
+        order: 1;
+    }
+
+    .top-actions {
+        width: 100%;
+        order: 2;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        gap: 5px !important;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+    }
+
+    .top-actions::-webkit-scrollbar {
+        display: none;
+    }
+
+    .top-bar .icon-btn,
+    .top-bar .top-coin-pill {
+        flex: 1 1 auto;
+        height: 31px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+        border-radius: 10px !important;
+    }
+}
+
+/* =========================================================
+   ULTRA-CLEAR PREMIUM DICE SKINS, LIVE INVENTORY PREVIEWS 
+   & FULL BOARD THEME TRANSFORMATIONS
+   ========================================================= */
+
+/* 1. High-Contrast 3D Dice Skins (In-Game Cube Faces & Pips) */
+[data-dice-skin="classic"] .cube-face {
+    background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 60%, #cbd5e1 100%) !important;
+    border: 1.5px solid #94a3b8 !important;
+}
+[data-dice-skin="classic"] .pip.show {
+    background: radial-gradient(circle at 30% 30%, #1e293b, #020617) !important;
+    box-shadow: 0 0 2px rgba(0,0,0,0.8) !important;
+}
+[data-dice-skin="classic"] .pip.show.red-pip {
+    background: radial-gradient(circle at 30% 30%, #ff4d4d, #dc2626 65%, #7f1d1d) !important;
+    box-shadow: 0 0 5px rgba(220,38,38,0.6) !important;
+}
+
+[data-dice-skin="royal_gold"] .cube-face {
+    background: linear-gradient(145deg, #fffbeb 0%, #fde047 38%, #eab308 75%, #a16207 100%) !important;
+    border: 1.5px solid #fef08a !important;
+    box-shadow: inset 0 0 8px rgba(255,255,255,0.7), 0 0 10px rgba(250,204,21,0.45) !important;
+}
+[data-dice-skin="royal_gold"] .pip.show {
+    background: radial-gradient(circle at 30% 30%, #31102f, #09040e 75%) !important;
+    box-shadow: 0 0 0 1.2px #fef9c3, 0 1px 2px rgba(0,0,0,0.9) !important;
+}
+[data-dice-skin="royal_gold"] .pip.show.red-pip {
+    background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b 75%) !important;
+    box-shadow: 0 0 0 1.2px #ffffff, 0 0 6px #ef4444 !important;
+}
+
+[data-dice-skin="neon_cyber"] .cube-face {
+    background: linear-gradient(145deg, #091e3a 0%, #0284c7 55%, #00f2fe 100%) !important;
+    border: 1.5px solid #a5f3fc !important;
+    box-shadow: inset 0 0 8px rgba(0,242,254,0.6), 0 0 12px rgba(0,242,254,0.5) !important;
+}
+[data-dice-skin="neon_cyber"] .pip.show {
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e0f2fe 70%, #7dd3fc 100%) !important;
+    box-shadow: 0 0 0 1.2px #082f49, 0 0 7px #ffffff !important;
+}
+[data-dice-skin="neon_cyber"] .pip.show.red-pip {
+    background: radial-gradient(circle at 35% 35%, #fef08a 0%, #facc15 75%, #ca8a04 100%) !important;
+    box-shadow: 0 0 0 1.2px #082f49, 0 0 8px #facc15 !important;
+}
+
+[data-dice-skin="ruby_flare"] .cube-face {
+    background: linear-gradient(145deg, #ff4d6d 0%, #e11d48 52%, #881337 100%) !important;
+    border: 1.5px solid #fda4af !important;
+    box-shadow: inset 0 0 8px rgba(255,255,255,0.35), 0 0 12px rgba(225,29,72,0.5) !important;
+}
+[data-dice-skin="ruby_flare"] .pip.show {
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #fff1f2 80%) !important;
+    box-shadow: 0 0 0 1.2px #4c0519, 0 0 6px #ffffff !important;
+}
+[data-dice-skin="ruby_flare"] .pip.show.red-pip {
+    background: radial-gradient(circle at 35% 35%, #fef08a 0%, #facc15 80%) !important;
+    box-shadow: 0 0 0 1.2px #4c0519, 0 0 8px #fde047 !important;
+}
+
+[data-dice-skin="emerald_glow"] .cube-face {
+    background: linear-gradient(145deg, #10b981 0%, #059669 52%, #064e3b 100%) !important;
+    border: 1.5px solid #6ee7b7 !important;
+    box-shadow: inset 0 0 8px rgba(255,255,255,0.35), 0 0 12px rgba(16,185,129,0.5) !important;
+}
+[data-dice-skin="emerald_glow"] .pip.show {
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ecfdf5 80%) !important;
+    box-shadow: 0 0 0 1.2px #022c22, 0 0 6px #ffffff !important;
+}
+[data-dice-skin="emerald_glow"] .pip.show.red-pip {
+    background: radial-gradient(circle at 35% 35%, #fef08a 0%, #facc15 80%) !important;
+    box-shadow: 0 0 0 1.2px #022c22, 0 0 8px #fde047 !important;
+}
+
+[data-dice-skin="obsidian"] .cube-face {
+    background: linear-gradient(145deg, #312e81 0%, #1e1b4b 52%, #090d16 100%) !important;
+    border: 1.5px solid #c084fc !important;
+    box-shadow: inset 0 0 8px rgba(192,132,252,0.4), 0 0 12px rgba(168,85,247,0.5) !important;
+}
+[data-dice-skin="obsidian"] .pip.show {
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #67e8f9 75%, #00f2fe 100%) !important;
+    box-shadow: 0 0 0 1px #090d16, 0 0 8px #00f2fe !important;
+}
+[data-dice-skin="obsidian"] .pip.show.red-pip {
+    background: radial-gradient(circle at 35% 35%, #fbcfe8 0%, #f43f5e 75%) !important;
+    box-shadow: 0 0 0 1px #090d16, 0 0 8px #fb7185 !important;
+}
+
+/* 2. Inventory Modal Live 3D Previews (Exact Color Dice, Tokens & Boards) */
+.inv-live-dice-wrap {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.inv-mini-dice-face {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 3px;
+    transform: rotate(-6deg);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.6);
+}
+.m-pip { width: 100%; height: 100%; border-radius: 50%; opacity: 0; }
+.m-pip.show { opacity: 1; }
+
+[data-preview-dice="classic"] .inv-mini-dice-face { background: linear-gradient(145deg, #ffffff, #cbd5e1); border: 2px solid #94a3b8; }
+[data-preview-dice="classic"] .m-pip.show { background: #0f172a; }
+[data-preview-dice="classic"] .m-pip.show.red { background: #dc2626; }
+
+[data-preview-dice="royal_gold"] .inv-mini-dice-face { background: linear-gradient(145deg, #fef08a, #eab308, #a16207); border: 2px solid #fef9c3; }
+[data-preview-dice="royal_gold"] .m-pip.show { background: #1e1b4b; box-shadow: 0 0 0 1px #fef08a; }
+[data-preview-dice="royal_gold"] .m-pip.show.red { background: #dc2626; box-shadow: 0 0 0 1px #fff; }
+
+[data-preview-dice="neon_cyber"] .inv-mini-dice-face { background: linear-gradient(145deg, #091e3a, #0284c7, #00f2fe); border: 2px solid #a5f3fc; }
+[data-preview-dice="neon_cyber"] .m-pip.show { background: #ffffff; box-shadow: 0 0 5px #fff; }
+[data-preview-dice="neon_cyber"] .m-pip.show.red { background: #fde047; box-shadow: 0 0 6px #fde047; }
+
+[data-preview-dice="ruby_flare"] .inv-mini-dice-face { background: linear-gradient(145deg, #ff4d6d, #e11d48, #881337); border: 2px solid #fda4af; }
+[data-preview-dice="ruby_flare"] .m-pip.show { background: #ffffff; box-shadow: 0 0 5px #fff; }
+[data-preview-dice="ruby_flare"] .m-pip.show.red { background: #fde047; box-shadow: 0 0 6px #fde047; }
+
+[data-preview-dice="emerald_glow"] .inv-mini-dice-face { background: linear-gradient(145deg, #10b981, #059669, #064e3b); border: 2px solid #6ee7b7; }
+[data-preview-dice="emerald_glow"] .m-pip.show { background: #ffffff; box-shadow: 0 0 5px #fff; }
+[data-preview-dice="emerald_glow"] .m-pip.show.red { background: #fde047; box-shadow: 0 0 6px #fde047; }
+
+[data-preview-dice="obsidian"] .inv-mini-dice-face { background: linear-gradient(145deg, #312e81, #1e1b4b, #090d16); border: 2px solid #c084fc; }
+[data-preview-dice="obsidian"] .m-pip.show { background: #00f2fe; box-shadow: 0 0 6px #00f2fe; }
+[data-preview-dice="obsidian"] .m-pip.show.red { background: #fb7185; box-shadow: 0 0 6px #fb7185; }
+
+/* Live Token Shape Previews in Inventory */
+.inv-live-token-wrap {
+    width: 44px;
+    height: 48px;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.inv-preview-pin {
+    width: 32px !important;
+    height: 42px !important;
+}
+[data-preview-shape="ghost"] .inv-preview-pin { clip-path: polygon(12% 100%, 12% 35%, 22% 14%, 38% 3%, 62% 3%, 78% 14%, 88% 35%, 88% 100%, 72% 86%, 56% 100%, 44% 86%, 28% 100%) !important; }
+[data-preview-shape="coin"] .inv-preview-pin { width: 36px !important; height: 36px !important; border-radius: 50% !important; clip-path: circle(48% at 50% 50%) !important; }
+[data-preview-shape="crown"] .inv-preview-pin { clip-path: polygon(8% 95%, 18% 30%, 36% 58%, 50% 15%, 64% 58%, 82% 30%, 92% 95%) !important; }
+[data-preview-shape="diamond"] .inv-preview-pin { clip-path: polygon(50% 0%, 95% 45%, 50% 100%, 5% 45%) !important; }
+
+/* Live Mini Board Previews in Inventory */
+.inv-live-board-wrap {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 8px;
+    border-radius: 8px;
+    padding: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
+    position: relative;
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    box-shadow: 0 5px 12px rgba(0,0,0,0.45);
+}
+.inv-live-board-wrap .b-quad { border-radius: 3px; }
+.inv-live-board-wrap .q-red { background: #dc1824; }
+.inv-live-board-wrap .q-green { background: #008844; }
+.inv-live-board-wrap .q-blue { background: #0765a8; }
+.inv-live-board-wrap .q-yellow { background: #e6c200; }
+.inv-live-board-wrap .b-center {
+    position: absolute;
+    width: 12px; height: 12px;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    background: #facc15;
+    border: 1px solid #fff;
+}
+.board-preview-royal_marble { background: #ddd6fe; border-color: #a855f7; box-shadow: 0 0 10px rgba(168,85,247,0.5); }
+.board-preview-wooden { background: #fde68a; border-color: #b45309; }
+.board-preview-cyber_grid { background: #0f172a; border-color: #00f2fe; box-shadow: 0 0 10px rgba(0,242,254,0.6); }
+.board-preview-emerald_palace { background: #a7f3d0; border-color: #10b981; }
+.board-preview-obsidian_gold { background: #1e293b; border-color: #facc15; box-shadow: 0 0 10px rgba(250,204,21,0.5); }
+
+/* 3. ACTUAL IN-GAME BOARD THEME TRANSFORMATIONS (VISIBLE IMMEDIATELY) */
+[data-board-skin="royal_marble"] .lk-board-box {
+    border: 4px solid #c084fc !important;
+    box-shadow: 0 8px 0 #4c1d95, 0 0 32px rgba(192, 132, 252, 0.65) !important;
+}
+[data-board-skin="royal_marble"] .board-cell:not(.lane-red):not(.lane-green):not(.lane-yellow):not(.lane-blue):not(.start-red):not(.start-green):not(.start-yellow):not(.start-blue) {
+    background: linear-gradient(135deg, #f5f3ff, #ddd6fe) !important;
+    border-color: #8b5cf6 !important;
+}
+[data-board-skin="royal_marble"] .home-inner-box {
+    background: linear-gradient(135deg, #faf5ff, #e9d5ff) !important;
+    border: 2px solid #c084fc !important;
+}
+
+[data-board-skin="wooden"] .lk-board-box {
+    border: 4px solid #d97706 !important;
+    box-shadow: 0 8px 0 #78350f, 0 16px 35px rgba(0,0,0,0.85) !important;
+}
+[data-board-skin="wooden"] .board-cell:not(.lane-red):not(.lane-green):not(.lane-yellow):not(.lane-blue):not(.start-red):not(.start-green):not(.start-yellow):not(.start-blue) {
+    background: linear-gradient(135deg, #fef3c7, #fcd34d) !important;
+    border-color: #92400e !important;
+}
+[data-board-skin="wooden"] .home-inner-box {
+    background: linear-gradient(135deg, #fffbeb, #fde68a) !important;
+    border: 2px solid #b45309 !important;
+}
+
+[data-board-skin="cyber_grid"] .lk-board-box {
+    border: 4px solid #00f2fe !important;
+    box-shadow: 0 8px 0 #0369a1, 0 0 35px rgba(0, 242, 254, 0.75) !important;
+}
+[data-board-skin="cyber_grid"] .board-cell:not(.lane-red):not(.lane-green):not(.lane-yellow):not(.lane-blue):not(.start-red):not(.start-green):not(.start-yellow):not(.start-blue) {
+    background: linear-gradient(135deg, #bae6fd, #7dd3fc) !important;
+    border-color: #0284c7 !important;
+}
+[data-board-skin="cyber_grid"] .home-inner-box {
+    background: linear-gradient(135deg, #e0f2fe, #bae6fd) !important;
+    border: 2px solid #00f2fe !important;
+}
+
+[data-board-skin="emerald_palace"] .lk-board-box {
+    border: 4px solid #10b981 !important;
+    box-shadow: 0 8px 0 #064e3b, 0 0 32px rgba(16, 185, 129, 0.65) !important;
+}
+[data-board-skin="emerald_palace"] .board-cell:not(.lane-red):not(.lane-green):not(.lane-yellow):not(.lane-blue):not(.start-red):not(.start-green):not(.start-yellow):not(.start-blue) {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important;
+    border-color: #059669 !important;
+}
+[data-board-skin="emerald_palace"] .home-inner-box {
+    background: linear-gradient(135deg, #ecfdf5, #a7f3d0) !important;
+    border: 2px solid #10b981 !important;
+}
+
+[data-board-skin="obsidian_gold"] .lk-board-box {
+    border: 4px solid #facc15 !important;
+    box-shadow: 0 8px 0 #713f12, 0 0 35px rgba(250, 204, 21, 0.65) !important;
+}
+[data-board-skin="obsidian_gold"] .board-cell:not(.lane-red):not(.lane-green):not(.lane-yellow):not(.lane-blue):not(.start-red):not(.start-green):not(.start-yellow):not(.start-blue) {
+    background: linear-gradient(135deg, #cbd5e1, #94a3b8) !important;
+    border-color: #334155 !important;
+}
+[data-board-skin="obsidian_gold"] .home-inner-box {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1) !important;
+    border: 2px solid #facc15 !important;
+}

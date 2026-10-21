@@ -1814,31 +1814,85 @@ renderFullStage = function () {
     }
 };
 
+/* =====================================================================
+   GLOBAL FIREBASE SYNC: 1 CRORE ADMIN COINS, 5000 USER COINS, 
+   3D INVENTORY PREVIEWS, BOARD SKINS & REALTIME TRAFFIC TRACKER
+   ===================================================================== */
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDPhuDKjXrta1izBBWC_gAkPtpm9jQkg-M",
+    authDomain: "ludoplayglobal.firebaseapp.com",
+    databaseURL: "https://ludoplayglobal-default-rtdb.firebaseio.com",
+    projectId: "ludoplayglobal",
+    storageBucket: "ludoplayglobal.firebasestorage.app",
+    messagingSenderId: "1082667626449",
+    appId: "1:1082667626449:web:87e3d57b73e35d22b5faf0",
+    measurementId: "G-BP81CD66F5"
+};
+
+let globalFirebaseApp = null;
+let globalDb = null;
+
+if (typeof firebase !== 'undefined') {
+    try {
+        if (!firebase.apps.length) {
+            globalFirebaseApp = firebase.initializeApp(firebaseConfig);
+        } else {
+            globalFirebaseApp = firebase.app();
+        }
+        globalDb = firebase.database();
+    } catch (e) {
+        console.error("Firebase init error:", e);
+    }
+}
+
+// Safely read currentUser even though app.js declared it with `let currentUser`
+function getActiveUserObj() {
+    try {
+        if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser === 'object') {
+            return currentUser;
+        }
+    } catch (_) {}
+    try {
+        const stored = JSON.parse(localStorage.getItem('ludoPlayUser'));
+        if (stored && typeof stored === 'object') return stored;
+    } catch (_) {}
+    return { phone: '', name: '', avatar: 'male', isAdmin: false };
+}
+
+function getCleanPhoneKey(phoneStr) {
+    const user = getActiveUserObj();
+    return String(phoneStr || user.phone || '')
+        .replace(/[\s+-]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
 function isUserLoggedIn() {
-    if (!window.currentUser || typeof currentUser !== 'object') return false;
-    const phone = currentUser.phone ? String(currentUser.phone).trim() : '';
-    const name = currentUser.name ? String(currentUser.name).trim() : '';
-    const isGuest = !phone || !name || name.toLowerCase() === 'guest' || name.toLowerCase() === 'you';
-    return !isGuest;
+    const user = getActiveUserObj();
+    const phone = String(user.phone || '').trim();
+    const name = String(user.name || '').trim();
+    return Boolean(phone && name && name.toLowerCase() !== 'guest' && name.toLowerCase() !== 'you');
 }
 
 function isCurrentUserAdminAccount() {
     if (!isUserLoggedIn()) return false;
-    const phone = String(currentUser.phone || '').trim();
-    const name = String(currentUser.name || '').trim().toLowerCase();
-    const adminBtn = document.querySelector('.admin-quick-btn');
+    const user = getActiveUserObj();
+    const phone = String(user.phone || '').trim().toLowerCase();
+    const name = String(user.name || '').trim().toLowerCase();
+    const adminBtn = document.getElementById('adminPanelBtn');
     const adminBtnVisible = Boolean(adminBtn && window.getComputedStyle(adminBtn).display !== 'none');
-    return phone === '01712345678' || phone.toLowerCase() === 'admin' || name === 'admin' || adminBtnVisible;
+    return Boolean(user.isAdmin || (phone === 'admin' && name === 'admin') || adminBtnVisible);
 }
 
 function getUserCoinStorageKey(phoneStr) {
-    const cleanPhone = String(phoneStr || (currentUser && currentUser.phone) || '').trim();
+    const cleanPhone = getCleanPhoneKey(phoneStr);
     return cleanPhone ? `ludoplay.coins.user.${cleanPhone}` : 'ludoplay.dummy.coins';
 }
 
+// 1 CRORE (10,000,000) FOR ADMIN | 5,000 FOR LOGGED-IN USERS
 function getPlayerDummyCoins() {
     if (!isUserLoggedIn()) return 0;
-
     const storageKey = getUserCoinStorageKey();
 
     if (isCurrentUserAdminAccount()) {
@@ -1855,7 +1909,9 @@ function getPlayerDummyCoins() {
 
     try {
         const stored = localStorage.getItem(storageKey);
-        if (stored !== null) return parseInt(stored, 10) || 0;
+        if (stored !== null && !isNaN(parseInt(stored, 10))) {
+            return parseInt(stored, 10);
+        }
     } catch (_) {}
 
     const initialCoins = 5000;
@@ -1865,8 +1921,9 @@ function getPlayerDummyCoins() {
 
 function checkAndGrantWelcomeCoins() {
     if (!isUserLoggedIn()) return;
-
+    const user = getActiveUserObj();
     const storageKey = getUserCoinStorageKey();
+    const cleanPhone = getCleanPhoneKey();
 
     if (isCurrentUserAdminAccount()) {
         try {
@@ -1878,9 +1935,8 @@ function checkAndGrantWelcomeCoins() {
         return;
     }
 
-    const phone = String(currentUser.phone).trim();
-    const name = String(currentUser.name).trim();
-    const welcomeKey = `ludoplay.welcomed.bonus.${phone}`;
+    const name = String(user.name || 'Player').trim();
+    const welcomeKey = `ludoplay.welcomed.bonus.${cleanPhone}`;
 
     try {
         if (!localStorage.getItem(welcomeKey)) {
@@ -1888,9 +1944,12 @@ function checkAndGrantWelcomeCoins() {
             if (localStorage.getItem(storageKey) === null) {
                 localStorage.setItem(storageKey, '5000');
             }
+            if (globalDb && cleanPhone) {
+                globalDb.ref(`users/${cleanPhone}/coins`).transaction(curr => (curr === null ? 5000 : curr));
+            }
             setTimeout(() => {
                 if (typeof showGameToast === 'function') {
-                    showGameToast(`🎉 Congratulations ${name}! You received 5,000 Free Coins!`);
+                    showGameToast(`🎉 Congratulations ${name}! You received 5,000 Free Welcome Coins! 🪙`);
                 }
             }, 400);
         }
@@ -1901,9 +1960,13 @@ function modifyActivePlayerCoins(amount) {
     if (!isUserLoggedIn()) return 0;
     try {
         const storageKey = getUserCoinStorageKey();
+        const cleanPhone = getCleanPhoneKey();
         let current = getPlayerDummyCoins();
         current = Math.max(0, current + amount);
         localStorage.setItem(storageKey, String(current));
+        if (globalDb && cleanPhone && !isCurrentUserAdminAccount()) {
+            globalDb.ref(`users/${cleanPhone}/coins`).set(current);
+        }
         injectTopBarCoinIndicator();
         return current;
     } catch (_) {
@@ -1920,7 +1983,7 @@ window.recordCompletedMatch = function(gameType, playersList, winnerIndex) {
     const isMeWinner = winner && (winner.playerId === getCurrentProfileId() || (!winner.isAI && winnerIndex === 0));
     if (isMeWinner && selectedSubMode === 'ai' && isUserLoggedIn()) {
         modifyActivePlayerCoins(1000);
-        showGameToast('🎉 Victory against AI! You earned +1000 Dummy Coins! 🪙');
+        showGameToast('🎉 Victory against AI! You earned +1,000 Coins! 🪙');
     }
 };
 
@@ -1929,7 +1992,6 @@ function injectTopBarCoinIndicator() {
     if (!topActions) return;
 
     let coinPill = document.getElementById('topBarCoinIndicator');
-
     if (!isUserLoggedIn()) {
         if (coinPill) coinPill.remove();
         return;
@@ -1944,9 +2006,292 @@ function injectTopBarCoinIndicator() {
         coinPill.className = 'top-coin-pill';
         topActions.insertBefore(coinPill, topActions.firstChild);
     }
-    coinPill.innerHTML = `🪙 ${coins.toLocaleString()}`;
+    const formatted = `🪙 ${coins.toLocaleString()}`;
+    if (coinPill.innerHTML !== formatted) {
+        coinPill.innerHTML = formatted;
+    }
 }
+setTimeout(injectTopBarCoinIndicator, 100);
 setInterval(injectTopBarCoinIndicator, 500);
+
+// REALTIME GIFT & COIN SYNC LISTENER FOR USERS
+let activeWatchedGiftPhone = '';
+function bindUserRealtimeGiftAndCoinListener() {
+    if (!globalDb || !isUserLoggedIn() || isCurrentUserAdminAccount()) return;
+    const user = getActiveUserObj();
+    const cleanPhone = getCleanPhoneKey();
+    if (!cleanPhone || activeWatchedGiftPhone === cleanPhone) return;
+    activeWatchedGiftPhone = cleanPhone;
+
+    globalDb.ref(`registeredPlayers/${cleanPhone}`).update({
+        name: user.name,
+        phone: user.phone,
+        avatar: user.avatar === 'female' ? '👧' : '👦',
+        lastLoginAt: new Date().toLocaleString()
+    });
+
+    globalDb.ref(`gifts/${cleanPhone}`).on('value', (snapshot) => {
+        const giftData = snapshot.val();
+        if (!giftData || !giftData.amount || !giftData.id) return;
+
+        const seenGiftKey = `ludoplay.gift.claimed.${giftData.id}`;
+        if (localStorage.getItem(seenGiftKey)) return;
+        localStorage.setItem(seenGiftKey, 'true');
+
+        const giftAmount = parseInt(giftData.amount, 10) || 0;
+        if (giftAmount > 0) {
+            const storageKey = getUserCoinStorageKey(cleanPhone);
+            const currentCoins = getPlayerDummyCoins();
+            const updatedCoins = currentCoins + giftAmount;
+            localStorage.setItem(storageKey, String(updatedCoins));
+            globalDb.ref(`users/${cleanPhone}/coins`).set(updatedCoins);
+            injectTopBarCoinIndicator();
+
+            globalDb.ref(`gifts/${cleanPhone}`).remove();
+
+            if (typeof playGameSound === 'function') playGameSound('victory');
+            showAdminGiftCongratsPopup(giftAmount);
+        }
+    });
+}
+setInterval(bindUserRealtimeGiftAndCoinListener, 1200);
+
+function showAdminGiftCongratsPopup(amount) {
+    showGameToast(`🎉 Congratulations! Admin gifted you ${Number(amount).toLocaleString()} Coins! 🪙`);
+    let modal = document.getElementById('adminGiftCongratsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'adminGiftCongratsModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '120';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div class="modal-box compact-modal neon-3d-modal" style="text-align:center;">
+            <div style="font-size:52px; margin-bottom:8px;">🎁🪙</div>
+            <h3 style="font-size:22px; font-weight:900; color:#fde047; margin-bottom:8px;">CONGRATULATIONS!</h3>
+            <p style="font-size:15px; color:#ffffff; font-weight:700; line-height:1.5; margin-bottom:18px;">
+                Admin has gifted you <strong style="color:#00f2fe; font-size:18px;">${Number(amount).toLocaleString()} Coins</strong>! 🎉
+            </p>
+            <button type="button" class="primary-btn" onclick="document.getElementById('adminGiftCongratsModal').style.display='none'">
+                Awesome! Collect Coins 🚀
+            </button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+}
+
+const _origSaveProfileAndLogin = window.saveProfileAndLogin;
+if (typeof _origSaveProfileAndLogin === 'function') {
+    window.saveProfileAndLogin = function() {
+        _origSaveProfileAndLogin.apply(this, arguments);
+        activeWatchedGiftPhone = '';
+        checkAndGrantWelcomeCoins();
+        injectTopBarCoinIndicator();
+        bindUserRealtimeGiftAndCoinListener();
+    };
+}
+
+// =====================================================================
+// UPGRADED 3D INVENTORY: REAL COLOR DICE, TOKEN & BOARD PREVIEWS
+// =====================================================================
+if (typeof INVENTORY_CATALOG !== 'undefined') {
+    INVENTORY_CATALOG.dice = [
+        { id: 'classic', name: 'Crystal Pearl', desc: 'Ultra-HD White & Red' },
+        { id: 'royal_gold', name: '24K Imperial Gold', desc: 'Luxury Gold & Onyx' },
+        { id: 'neon_cyber', name: 'Cyber Plasma', desc: 'Neon Cyan & Deep Navy' },
+        { id: 'ruby_flare', name: 'Crimson Ruby', desc: ' Glowing White Pips' },
+        { id: 'emerald_glow', name: 'Jade Emerald', desc: 'Gold & White Pips' },
+        { id: 'obsidian', name: 'Phantom Galaxy', desc: 'Dark Void & Neon Pips' }
+    ];
+    INVENTORY_CATALOG.tokenShapes = [
+        { id: 'alpin', name: 'Classic 3D Pin', desc: 'Tournament Pin' },
+        { id: 'crown', name: 'Royal Crown', desc: 'Monarch Piece' },
+        { id: 'diamond', name: 'Crystal Gem', desc: 'Faceted Diamond' },
+        { id: 'coin', name: 'Golden Medallion', desc: '3D Disc Token' },
+        { id: 'ghost', name: 'Cyber Shield', desc: 'Esports Emblem' }
+    ];
+    INVENTORY_CATALOG.boards = [
+        { id: 'classic', name: 'Classic Tournament', desc: ' Crisp White Arena' },
+        { id: 'royal_marble', name: 'Royal Amethyst', desc: 'Violet & Gold Court' },
+        { id: 'wooden', name: 'Imperial Wood', desc: 'Warm Teak & Gold' },
+        { id: 'cyber_grid', name: 'Cyber Neon Grid', desc: 'Dark Neon Matrix' },
+        { id: 'emerald_palace', name: 'Emerald Palace', desc: 'Rich Jade & Mint' },
+        { id: 'obsidian_gold', name: 'Obsidian Gold', desc: 'Dark Slate & 24K Trim' }
+    ];
+}
+
+function buildMiniInventoryDicePreview(skinId) {
+    return `
+        <div class="inv-live-dice-wrap" data-preview-dice="${skinId}">
+            <div class="inv-mini-dice-face">
+                <span class="m-pip show red"></span><span class="m-pip"></span><span class="m-pip show"></span>
+                <span class="m-pip"></span><span class="m-pip show red"></span><span class="m-pip"></span>
+                <span class="m-pip show"></span><span class="m-pip"></span><span class="m-pip show red"></span>
+            </div>
+        </div>
+    `;
+}
+
+function buildMiniInventoryTokenPreview(shapeId, activeColorId) {
+    const colorClass = `pin-${activeColorId || 'blue'}`;
+    return `
+        <div class="inv-live-token-wrap" data-preview-shape="${shapeId}">
+            <div class="lk-pin-token ${colorClass} inv-preview-pin"></div>
+        </div>
+    `;
+}
+
+function buildMiniInventoryBoardPreview(boardId) {
+    return `
+        <div class="inv-live-board-wrap board-preview-${boardId}">
+            <span class="b-quad q-red"></span>
+            <span class="b-quad q-green"></span>
+            <span class="b-quad q-blue"></span>
+            <span class="b-quad q-yellow"></span>
+            <span class="b-center"></span>
+        </div>
+    `;
+}
+
+window.renderInventoryGrids = function() {
+    const prefs = (typeof userInventoryPrefs !== 'undefined' && userInventoryPrefs) ? userInventoryPrefs : { dice: 'classic', tokenShape: 'alpin', tokenColor: 'blue', board: 'classic' };
+    
+    const diceGrid = document.getElementById('invDiceGrid');
+    if (diceGrid && typeof INVENTORY_CATALOG !== 'undefined') {
+        diceGrid.innerHTML = INVENTORY_CATALOG.dice.map(item => `
+            <div class="inv-card-3d ${prefs.dice === item.id ? 'active' : ''}" onclick="selectInventoryOption('dice','${item.id}')">
+                ${buildMiniInventoryDicePreview(item.id)}
+                <strong>${escapeHTML(item.name)}</strong>
+                <small>${prefs.dice === item.id ? '✓ Equipped' : item.desc}</small>
+            </div>
+        `).join('');
+    }
+
+    const shapeGrid = document.getElementById('invTokenShapeGrid');
+    if (shapeGrid && typeof INVENTORY_CATALOG !== 'undefined') {
+        shapeGrid.innerHTML = INVENTORY_CATALOG.tokenShapes.map(item => `
+            <div class="inv-card-3d ${prefs.tokenShape === item.id ? 'active' : ''}" onclick="selectInventoryOption('tokenShape','${item.id}')">
+                ${buildMiniInventoryTokenPreview(item.id, prefs.tokenColor)}
+                <strong>${escapeHTML(item.name)}</strong>
+                <small>${prefs.tokenShape === item.id ? '✓ Equipped' : item.desc}</small>
+            </div>
+        `).join('');
+    }
+
+    const colorGrid = document.getElementById('invTokenColorGrid');
+    if (colorGrid && typeof INVENTORY_CATALOG !== 'undefined') {
+        colorGrid.innerHTML = INVENTORY_CATALOG.tokenColors.map(item => `
+            <div class="inv-color-chip ${prefs.tokenColor === item.id ? 'active' : ''}" style="background:${item.hex}" onclick="selectInventoryOption('tokenColor','${item.id}')">
+                ${prefs.tokenColor === item.id ? '✓ ' : ''}${escapeHTML(item.name)}
+            </div>
+        `).join('');
+    }
+
+    const boardGrid = document.getElementById('invBoardGrid');
+    if (boardGrid && typeof INVENTORY_CATALOG !== 'undefined') {
+        boardGrid.innerHTML = INVENTORY_CATALOG.boards.map(item => `
+            <div class="inv-card-3d ${prefs.board === item.id ? 'active' : ''}" onclick="selectInventoryOption('board','${item.id}')">
+                ${buildMiniInventoryBoardPreview(item.id)}
+                <strong>${escapeHTML(item.name)}</strong>
+                <small>${prefs.board === item.id ? '✓ Equipped' : item.desc}</small>
+            </div>
+        `).join('');
+    }
+};
+
+const _origApplyInventoryCosmetics = window.applyInventoryCosmetics;
+window.applyInventoryCosmetics = function() {
+    if (typeof _origApplyInventoryCosmetics === 'function') {
+        _origApplyInventoryCosmetics.apply(this, arguments);
+    }
+    const prefs = (typeof userInventoryPrefs !== 'undefined' && userInventoryPrefs) ? userInventoryPrefs : {};
+    const boardSkin = prefs.board || 'classic';
+    document.documentElement.setAttribute('data-board-skin', boardSkin);
+    document.body?.setAttribute('data-board-skin', boardSkin);
+};
+setTimeout(() => { if (typeof applyInventoryCosmetics === 'function') applyInventoryCosmetics(); }, 120);
+
+// GLOBAL FIREBASE LISTENERS: NOTICE, WEATHER THEME & REGISTERED PLAYERS
+let cachedGlobalTheme = 'default';
+if (globalDb) {
+    globalDb.ref('settings/globalNotice').on('value', (snapshot) => {
+        const remoteNotice = snapshot.val();
+        if (remoteNotice !== null && remoteNotice !== undefined) {
+            const cleanText = String(remoteNotice).trim();
+            try {
+                localStorage.setItem('ludoAdminNotice', cleanText);
+                localStorage.setItem('ludoplay.live.notice', cleanText);
+                localStorage.removeItem('ludoNoticeDismissed');
+            } catch (_) {}
+            if (typeof adminNoticeText !== 'undefined') adminNoticeText = cleanText;
+            const noticeTextEl = document.getElementById('noticeText');
+            const noticeBarEl = document.getElementById('noticeBar');
+            if (noticeTextEl && cleanText) {
+                noticeTextEl.textContent = cleanText.startsWith('📢') ? cleanText : `📢 ${cleanText}`;
+            }
+            if (noticeBarEl) {
+                noticeBarEl.style.display = cleanText ? 'flex' : 'none';
+            }
+        }
+    });
+
+    globalDb.ref('settings/globalTheme').on('value', (snapshot) => {
+        const remoteTheme = snapshot.val();
+        if (remoteTheme && ['default', 'winter', 'spring', 'summer'].includes(remoteTheme)) {
+            cachedGlobalTheme = remoteTheme;
+            try { localStorage.setItem('ludoGlobalTheme', remoteTheme); } catch (_) {}
+            if (typeof applyThemeVisuals === 'function') {
+                applyThemeVisuals(remoteTheme);
+            }
+        }
+    });
+
+    globalDb.ref('registeredPlayers').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && typeof data === 'object') {
+            const list = Object.values(data);
+            if (typeof playersDatabase !== 'undefined' && Array.isArray(playersDatabase)) {
+                playersDatabase = list;
+                try { localStorage.setItem('ludoAdminPlayersDB', JSON.stringify(list)); } catch (_) {}
+                if (typeof renderRegisteredPlayersForAdmin === 'function') renderRegisteredPlayersForAdmin();
+            }
+        }
+    });
+}
+
+window.applyThemeForCurrentUser = function() {
+    const storedGlobal = cachedGlobalTheme || localStorage.getItem('ludoGlobalTheme') || 'default';
+    if (['winter', 'spring', 'summer'].includes(storedGlobal)) {
+        if (typeof applyThemeVisuals === 'function') applyThemeVisuals(storedGlobal);
+        return;
+    }
+    const user = getActiveUserObj();
+    const userPrefTheme = (user && user.userTheme === 'royal') ? 'royal' : 'default';
+    if (typeof applyThemeVisuals === 'function') applyThemeVisuals(userPrefTheme);
+};
+
+const _origSetGlobalTheme = window.setGlobalTheme || function(){};
+window.setGlobalTheme = function(themeId) {
+    const res = _origSetGlobalTheme.apply(this, arguments);
+    if (res !== false && globalDb) {
+        globalDb.ref('settings/globalTheme').set(themeId).then(() => {
+            if (typeof showGameToast === 'function') {
+                showGameToast('🌦️ Weather theme updated globally for all users!');
+            }
+        });
+    }
+    return res;
+};
+
+const _origSaveAdminSettings = window.saveAdminSettings || function(){};
+window.saveAdminSettings = function() {
+    const newNotice = document.getElementById('adminNoticeInput')?.value.trim() || '';
+    if (globalDb) {
+        globalDb.ref('settings/globalNotice').set(newNotice);
+    }
+    _origSaveAdminSettings.apply(this, arguments);
+};
 
 function openAdminGiftModal() {
     closeAdminModal();
@@ -1962,14 +2307,14 @@ function openAdminGiftModal() {
                     <span class="modal-title">🎁 Admin Coin Gifting</span>
                     <button class="notice-close" onclick="document.getElementById('neonAdminGiftModal').style.display='none'">×</button>
                 </div>
-                <p class="profile-help-text">Enter recipient's registered phone number and amount of dummy coins.</p>
+                <p class="profile-help-text">Enter recipient's phone number and coin amount. The user will receive a Congratulations popup from Admin!</p>
                 <div class="input-group">
                     <label>Recipient Phone Number</label>
                     <input type="tel" id="neonGiftPhone" class="input-field" placeholder="017XXXXXXXX">
                 </div>
                 <div class="input-group">
                     <label>Coin Amount</label>
-                    <input type="number" id="neonGiftAmount" class="input-field" placeholder="e.g. 50000" min="1">
+                    <input type="number" id="neonGiftAmount" class="input-field" placeholder="e.g. 10000" min="1">
                 </div>
                 <button type="button" class="primary-btn" onclick="executeNeonAdminGift()">🚀 Send Gift Now</button>
             </div>
@@ -1980,33 +2325,36 @@ function openAdminGiftModal() {
 }
 
 function executeNeonAdminGift() {
-    const phone = document.getElementById('neonGiftPhone')?.value.trim();
+    const rawPhone = document.getElementById('neonGiftPhone')?.value.trim();
+    const cleanPhone = getCleanPhoneKey(rawPhone);
     const amount = parseInt(document.getElementById('neonGiftAmount')?.value, 10);
-    if (!phone || isNaN(amount) || amount <= 0) {
-        showGameToast('⚠️ Please enter a valid phone and coin amount.');
+
+    if (!cleanPhone || isNaN(amount) || amount <= 0) {
+        showGameToast('⚠️ Please enter a valid phone number and coin amount.');
         return;
     }
+
     try {
-        const regRaw = localStorage.getItem('ludoplay.registered.players');
-        const players = regRaw ? JSON.parse(regRaw) : [];
-        const found = players.find(p => String(p.phone).trim() === phone);
-        if (!found && phone !== (currentUser && currentUser.phone)) {
-            showGameToast('❌ Player with this phone number is not found.');
-            return;
-        }
-        const targetKey = getUserCoinStorageKey(phone);
+        const targetKey = getUserCoinStorageKey(cleanPhone);
         const existingCoins = parseInt(localStorage.getItem(targetKey), 10);
         const baseCoins = isNaN(existingCoins) ? 5000 : existingCoins;
         localStorage.setItem(targetKey, String(baseCoins + amount));
+    } catch (_) {}
 
-        injectTopBarCoinIndicator();
-        showGameToast(`🎁 Successfully gifted ${amount.toLocaleString()} coins to ${phone}!`);
-        document.getElementById('neonGiftPhone').value = '';
-        document.getElementById('neonGiftAmount').value = '';
-        document.getElementById('neonAdminGiftModal').style.display = 'none';
-    } catch (_) {
-        showGameToast('⚠️ Error gifting coins.');
+    if (globalDb) {
+        const giftPayload = {
+            id: 'gift_' + Date.now(),
+            amount: amount,
+            sentAt: Date.now()
+        };
+        globalDb.ref(`gifts/${cleanPhone}`).set(giftPayload);
     }
+
+    injectTopBarCoinIndicator();
+    showGameToast(`🎁 Successfully gifted ${amount.toLocaleString()} Coins to ${rawPhone}!`);
+    document.getElementById('neonGiftPhone').value = '';
+    document.getElementById('neonGiftAmount').value = '';
+    document.getElementById('neonAdminGiftModal').style.display = 'none';
 }
 
 function openAdminPlayersModal() {
@@ -2039,23 +2387,18 @@ function renderNeonPlayersModalList() {
     const listEl = document.getElementById('neonModalPlayerList');
     const query = document.getElementById('neonPlayerSearchInput')?.value.toLowerCase().trim() || '';
     if (!listEl) return;
-    try {
-        const regRaw = localStorage.getItem('ludoplay.registered.players');
-        const players = regRaw ? JSON.parse(regRaw) : [];
-        const filtered = players.filter(p => (p.name || '').toLowerCase().includes(query) || (p.phone || '').includes(query));
-        if (!filtered.length) {
-            listEl.innerHTML = `<div class="player-list-empty">No registered players found.</div>`;
-            return;
-        }
-        listEl.innerHTML = filtered.map(p => `
-            <div class="player-row">
-                <span class="p-info">${escapeHTML(p.name || 'Player')} (${p.gender === 'female' ? '👧' : '👦'})</span>
-                <span class="p-phone">${escapeHTML(p.phone)}</span>
-            </div>
-        `).join('');
-    } catch (_) {
-        listEl.innerHTML = `<div class="player-list-empty">Database empty.</div>`;
+    const sourceList = (typeof playersDatabase !== 'undefined' && Array.isArray(playersDatabase)) ? playersDatabase : [];
+    const filtered = sourceList.filter(p => (p.name || '').toLowerCase().includes(query) || (p.phone || '').includes(query));
+    if (!filtered.length) {
+        listEl.innerHTML = `<div class="player-list-empty">No registered players found.</div>`;
+        return;
     }
+    listEl.innerHTML = filtered.map(p => `
+        <div class="player-row">
+            <span class="p-info">${escapeHTML(p.avatar || '👦')} ${escapeHTML(p.name || 'Player')}</span>
+            <span class="p-phone">${escapeHTML(p.phone || '')}</span>
+        </div>
+    `).join('');
 }
 
 function openAdminNoticeModal() {
@@ -2074,7 +2417,7 @@ function openAdminNoticeModal() {
                 </div>
                 <p class="profile-help-text">Type your announcement below. It will scroll live on all users' home screens.</p>
                 <div class="input-group">
-                    <input type="text" id="neonNoticeInputBox" class="input-field" placeholder="Write announcement (leave empty to clear)">
+                    <input type="text" id="neonNoticeInputBox" class="input-field" placeholder="Write announcement">
                 </div>
                 <button type="button" class="primary-btn" onclick="executeNeonNoticeUpdate()">🚀 Broadcast Notice</button>
             </div>
@@ -2087,7 +2430,7 @@ function openAdminNoticeModal() {
     modal.style.display = 'flex';
 }
 
-function executeNeonNoticeUpdate() {
+window.executeNeonNoticeUpdate = function() {
     const val = document.getElementById('neonNoticeInputBox')?.value.trim() || '';
     const finalVal = val || 'Only offline match available! Please login first and enjoy the game.';
     
@@ -2096,264 +2439,30 @@ function executeNeonNoticeUpdate() {
 
     if (globalDb) {
         globalDb.ref('settings/globalNotice').set(finalVal).then(() => {
-            if (typeof showGameToast === 'function') {
-                showGameToast('📢 Notice broadcasted globally via Firebase!');
-            }
-        }).catch((err) => {
-            console.error("Firebase update error:", err);
+            showGameToast('📢 Notice broadcasted globally to all users!');
         });
     }
-
-    if (typeof saveAdminSettings === 'function') {
-        saveAdminSettings();
-    } else {
-        const noticeTextEl = document.getElementById('noticeText');
-        const noticeBarEl = document.getElementById('noticeBar');
-        if (noticeTextEl) noticeTextEl.textContent = `📢 ${finalVal}`;
-        if (noticeBarEl) noticeBarEl.style.display = 'flex';
-        try {
-            localStorage.setItem('ludoplay.live.notice', finalVal);
-            localStorage.setItem('ludoplay.notice', finalVal);
-            localStorage.setItem('adminNotice', finalVal);
-        } catch (_) {}
-    }
-    showGameToast('📢 Live notice updated successfully!');
+    if (typeof saveAdminSettings === 'function') saveAdminSettings();
     document.getElementById('neonAdminNoticeModal').style.display = 'none';
-}
-
-const _origOpenAdminModal2 = window.openAdminModal || function(){};
-window.openAdminModal = function() {
-    _origOpenAdminModal2.apply(this, arguments);
-    setTimeout(injectCleanAdminHubUI, 50);
 };
-
-// FIREBASE GLOBAL CONFIG & SYNC
-const firebaseConfig = {
-    apiKey: "AIzaSyDPhuDKjXrta1izBBWC_gAkPtpm9jQkg-M",
-    authDomain: "ludoplayglobal.firebaseapp.com",
-    projectId: "ludoplayglobal",
-    storageBucket: "ludoplayglobal.firebasestorage.app",
-    messagingSenderId: "1082667626449",
-    appId: "1:1082667626449:web:87e3d57b73e35d22b5faf0",
-    measurementId: "G-BP81CD66F5"
-};
-
-let globalFirebaseApp = null;
-let globalDb = null;
-
-if (typeof firebase !== 'undefined') {
-    if (!firebase.apps.length) {
-        globalFirebaseApp = firebase.initializeApp(firebaseConfig);
-    } else {
-        globalFirebaseApp = firebase.app();
-    }
-    globalDb = firebase.database();
-}
-
-if (globalDb) {
-    globalDb.ref('settings/globalNotice').on('value', (snapshot) => {
-        const remoteNotice = snapshot.val();
-        if (remoteNotice) {
-            try {
-                localStorage.setItem('ludoplay.live.notice', remoteNotice);
-                localStorage.setItem('ludoplay.notice', remoteNotice);
-                localStorage.setItem('adminNotice', remoteNotice);
-            } catch (_) {}
-            const noticeTextEl = document.getElementById('noticeText');
-            const noticeBarEl = document.getElementById('noticeBar');
-            if (noticeTextEl) noticeTextEl.textContent = remoteNotice.startsWith('📢') ? remoteNotice : `📢 ${remoteNotice}`;
-            if (noticeBarEl && noticeBarEl.style.display === 'none' && !noticeBarEl.classList.contains('is-dismissing')) {
-                noticeBarEl.style.display = 'flex';
-            }
-        }
-    });
-}
 
 function initRealtimeTrafficTracker() {
     if (!globalDb) return;
 
+    const visitSessionKey = 'ludoplay.session.counted';
     const visitorRef = globalDb.ref('analytics/totalVisits');
-    visitorRef.transaction((currentVal) => {
-        return (currentVal || 0) + 1;
-    });
+    if (!sessionStorage.getItem(visitSessionKey)) {
+        sessionStorage.setItem(visitSessionKey, 'true');
+        visitorRef.transaction((currentVal) => (currentVal || 0) + 1);
+    }
 
     const activeRef = globalDb.ref('analytics/activeUsers');
     const myConnectionRef = globalDb.ref('analytics/activeUsers/' + Math.random().toString(36).substr(2, 9));
-    
     myConnectionRef.set(true);
     myConnectionRef.onDisconnect().remove();
 
     visitorRef.on('value', (snapshot) => {
         const total = snapshot.val() || 0;
-        const totalVisitsEl = document.getElementById('totalVisitsVal');
-        if (totalVisitsEl) totalVisitsEl.textContent = total.toLocaleString();
-    });
-
-    activeRef.on('value', (snapshot) => {
-        const activeObj = snapshot.val() || {};
-        const activeCount = Object.keys(activeObj).length;
-        const activeUsersEl = document.getElementById('activeUsersVal');
-        if (activeUsersEl) activeUsersEl.textContent = activeCount;
-    });
-}
-
-setTimeout(initRealtimeTrafficTracker, 1200);
-
-window.injectCleanAdminHubUI = function() {
-    const adminModalBox = document.querySelector('#adminModal .modal-box');
-    if (!adminModalBox) return;
-
-    const regPlayersGroup = document.getElementById('registeredPlayersList')?.closest('.input-group');
-    if (regPlayersGroup) regPlayersGroup.style.display = 'none';
-    const noticeGroup = document.getElementById('adminNoticeInput')?.closest('.input-group');
-    if (noticeGroup) noticeGroup.style.display = 'none';
-    const oldGiftSec = document.getElementById('adminCoinGiftSection');
-    if (oldGiftSec) oldGiftSec.style.display = 'none';
-
-    if (document.getElementById('adminHubHubMenu')) return;
-
-    adminModalBox.insertAdjacentHTML('beforeend', `
-        <div id="adminHubHubMenu" class="admin-hub-grid" style="margin-top: 14px; margin-bottom: 12px;">
-            <div class="admin-hub-card" onclick="openAdminGiftModal()">
-                <span>🎁</span>
-                <div>
-                    <strong>Gift Coins Panel</strong>
-                    <small>Send dummy coins to registered players by phone</small>
-                </div>
-            </div>
-            <div class="admin-hub-card" onclick="openAdminPlayersModal()">
-                <span>📋</span>
-                <div>
-                    <strong>Registered Players Database</strong>
-                    <small>View and search all user accounts</small>
-                </div>
-            </div>
-            <div class="admin-hub-card" onclick="openAdminNoticeModal()">
-                <span>📢</span>
-                <div>
-                    <strong>Update Live Notice Bar</strong>
-                    <small>Broadcast running announcements to all users</small>
-                </div>
-            </div>
-        </div>
-        <div class="admin-traffic-card" style="background: rgba(15,23,42,0.8); padding: 14px; border-radius: 12px; margin-top: 12px; border: 1px solid rgba(0,242,254,0.4);">
-            <div style="font-size: 13px; font-weight: 800; color: #00f2fe; margin-bottom: 8px;">📊 LIVE TRAFFIC ANALYTICS</div>
-            <div style="display: flex; justify-content: space-between; font-size: 14px; color: #fff;">
-                <span>🟢 Active Users: <strong id="activeUsersVal" style="color: #22c55e;">0</strong></span>
-                <span>👥 Total Visits: <strong id="totalVisitsVal" style="color: #fde047;">0</strong></span>
-            </div>
-        </div>
-    `);
-};
-
-/* =====================================================================
-   FIREBASE REALTIME GLOBAL SYNC: NOTICE, WEATHER & TRAFFIC
-   ===================================================================== */
-
-const firebaseConfig = {
-    apiKey: "AIzaSyDPhuDKjXrta1izBBWC_gAkPtpm9jQkg-M",
-    authDomain: "ludoplayglobal.firebaseapp.com",
-    projectId: "ludoplayglobal",
-    storageBucket: "ludoplayglobal.firebasestorage.app",
-    messagingSenderId: "1082667626449",
-    appId: "1:1082667626449:web:87e3d57b73e35d22b5faf0",
-    measurementId: "G-BP81CD66F5"
-};
-
-let globalFirebaseApp = null;
-let globalDb = null;
-
-if (typeof firebase !== 'undefined') {
-    if (!firebase.apps.length) {
-        globalFirebaseApp = firebase.initializeApp(firebaseConfig);
-    } else {
-        globalFirebaseApp = firebase.app();
-    }
-    globalDb = firebase.database();
-}
-
-// 1. Global Notice Sync
-if (globalDb) {
-    globalDb.ref('settings/globalNotice').on('value', (snapshot) => {
-        const remoteNotice = snapshot.val();
-        if (remoteNotice) {
-            try {
-                localStorage.setItem('ludoplay.live.notice', remoteNotice);
-                localStorage.setItem('ludoplay.notice', remoteNotice);
-                localStorage.setItem('adminNotice', remoteNotice);
-            } catch (_) {}
-            const noticeTextEl = document.getElementById('noticeText');
-            const noticeBarEl = document.getElementById('noticeBar');
-            if (noticeTextEl) noticeTextEl.textContent = remoteNotice.startsWith('📢') ? remoteNotice : `📢 ${remoteNotice}`;
-            if (noticeBarEl && noticeBarEl.style.display === 'none' && !noticeBarEl.classList.contains('is-dismissing')) {
-                noticeBarEl.style.display = 'flex';
-            }
-        }
-    });
-
-    // 2. Global Weather Theme Sync (Admin to Users)
-    globalDb.ref('settings/globalTheme').on('value', (snapshot) => {
-        const remoteTheme = snapshot.val();
-        if (remoteTheme && ['default', 'winter', 'spring', 'summer'].includes(remoteTheme)) {
-            try { localStorage.setItem('ludoGlobalTheme', remoteTheme); } catch (_) {}
-            if (typeof applyThemeVisuals === 'function') {
-                applyThemeVisuals(remoteTheme);
-            }
-        }
-    });
-}
-
-// Override setGlobalTheme to push theme globally to Firebase!
-const _origSetGlobalTheme = window.setGlobalTheme || function(){};
-window.setGlobalTheme = function(themeId) {
-    const res = _origSetGlobalTheme.apply(this, arguments);
-    if (res !== false && globalDb) {
-        globalDb.ref('settings/globalTheme').set(themeId).then(() => {
-            if (typeof showGameToast === 'function') {
-                showGameToast('🌦️ Weather theme updated globally for all users!');
-            }
-        });
-    }
-    return res;
-};
-
-// Override executeNeonNoticeUpdate to push notice globally
-const _origExecuteNeonNoticeUpdate2 = window.executeNeonNoticeUpdate || function(){};
-window.executeNeonNoticeUpdate = function() {
-    const val = document.getElementById('neonNoticeInputBox')?.value.trim() || '';
-    const finalVal = val || 'Only offline match available! Please login first and enjoy the game.';
-    
-    if (globalDb) {
-        globalDb.ref('settings/globalNotice').set(finalVal).then(() => {
-            if (typeof showGameToast === 'function') {
-                showGameToast('📢 Notice broadcasted globally via Firebase!');
-            }
-        });
-    }
-
-    if (typeof _origExecuteNeonNoticeUpdate2 === 'function') {
-        _origExecuteNeonNoticeUpdate2.apply(this, arguments);
-    }
-};
-
-// 3. Realtime Visitor Traffic & Active Users Tracker
-function initRealtimeTrafficTracker() {
-    if (!globalDb) return;
-
-    const visitorRef = globalDb.ref('analytics/totalVisits');
-    visitorRef.transaction((currentVal) => {
-        return (currentVal || 0) + 1;
-    });
-
-    const activeRef = globalDb.ref('analytics/activeUsers');
-    const myConnectionRef = globalDb.ref('analytics/activeUsers/' + Math.random().toString(36).substr(2, 9));
-    
-    myConnectionRef.set(true);
-    myConnectionRef.onDisconnect().remove();
-
-    visitorRef.on('value', (snapshot) => {
-        const total = snapshot.val() || 0;
-        // Update both Admin Modal & Game Hub elements
         ['totalVisitsVal', 'adminTotalVisits'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = total.toLocaleString();
@@ -2367,12 +2476,13 @@ function initRealtimeTrafficTracker() {
             const el = document.getElementById(id);
             if (el) el.textContent = activeCount.toLocaleString();
         });
+        const topOnlineEl = document.getElementById('onlineCount');
+        if (topOnlineEl) topOnlineEl.textContent = `${activeCount.toLocaleString()} Online`;
         const updatedEl = document.getElementById('adminTrafficUpdated');
-        if (updatedEl) updatedEl.textContent = `Updated live via Firebase (${new Date().toLocaleTimeString()})`;
+        if (updatedEl) updatedEl.textContent = `Live via Firebase · ${new Date().toLocaleTimeString()}`;
     });
 }
-
-setTimeout(initRealtimeTrafficTracker, 1200);
+setTimeout(initRealtimeTrafficTracker, 800);
 
 window.injectCleanAdminHubUI = function() {
     const adminModalBox = document.querySelector('#adminModal .modal-box');
@@ -2382,8 +2492,6 @@ window.injectCleanAdminHubUI = function() {
     if (regPlayersGroup) regPlayersGroup.style.display = 'none';
     const noticeGroup = document.getElementById('adminNoticeInput')?.closest('.input-group');
     if (noticeGroup) noticeGroup.style.display = 'none';
-    const oldGiftSec = document.getElementById('adminCoinGiftSection');
-    if (oldGiftSec) oldGiftSec.style.display = 'none';
 
     if (document.getElementById('adminHubHubMenu')) return;
 
@@ -2393,14 +2501,14 @@ window.injectCleanAdminHubUI = function() {
                 <span>🎁</span>
                 <div>
                     <strong>Gift Coins Panel</strong>
-                    <small>Send dummy coins to registered players by phone</small>
+                    <small>Send coins to any player's phone number</small>
                 </div>
             </div>
             <div class="admin-hub-card" onclick="openAdminPlayersModal()">
                 <span>📋</span>
                 <div>
                     <strong>Registered Players Database</strong>
-                    <small>View and search all user accounts</small>
+                    <small>View and search all user accounts globally</small>
                 </div>
             </div>
             <div class="admin-hub-card" onclick="openAdminNoticeModal()">
@@ -2411,12 +2519,11 @@ window.injectCleanAdminHubUI = function() {
                 </div>
             </div>
         </div>
-        <div class="admin-traffic-card" style="background: rgba(15,23,42,0.8); padding: 14px; border-radius: 12px; margin-top: 12px; border: 1px solid rgba(0,242,254,0.4);">
-            <div style="font-size: 13px; font-weight: 800; color: #00f2fe; margin-bottom: 8px;">📊 LIVE TRAFFIC ANALYTICS</div>
-            <div style="display: flex; justify-content: space-between; font-size: 14px; color: #fff;">
-                <span>🟢 Active Users: <strong id="activeUsersVal" style="color: #22c55e;">0</strong></span>
-                <span>👥 Total Visits: <strong id="totalVisitsVal" style="color: #fde047;">0</strong></span>
-            </div>
-        </div>
     `);
+};
+
+const _origOpenAdminModal2 = window.openAdminModal || function(){};
+window.openAdminModal = function() {
+    _origOpenAdminModal2.apply(this, arguments);
+    setTimeout(injectCleanAdminHubUI, 50);
 };
