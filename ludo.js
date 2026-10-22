@@ -764,20 +764,43 @@ function isSixActiveForPlayer(playerIdx) {
 }
 
 function render4PlayerLudoStage(stage) {
+    window.render4PlayerLudoStage = function(stage) {
     const colorPlayers = Object.fromEntries(activePlayersList.map((player, index) => [player.color, index]));
-    const blIdx = colorPlayers.blue ?? -1; const tlIdx = colorPlayers.red ?? -1; const trIdx = colorPlayers.green ?? -1; const brIdx = colorPlayers.yellow ?? -1;
+    
+    // Get Player 0's chosen color (e.g. blue, red, green, yellow)
+    const myColor = activePlayersList[0]?.color || 'blue';
 
-    const redSix = isSixActiveForPlayer(tlIdx);
-    const greenSix = isSixActiveForPlayer(trIdx);
-    const yellowSix = isSixActiveForPlayer(brIdx);
-    const blueSix = isSixActiveForPlayer(blIdx);
+    // To make Player 0's home base ALWAYS sit at the Bottom-Left corner:
+    // Physical board layout corners: BL=blue, TL=red, TR=green, BR=yellow
+    // Rotation degrees needed to bring any base to Bottom-Left (BL):
+    // blue (already BL) = 0deg, yellow (was BR) = 90deg, green (was TR) = 180deg, red (was TL) = 270deg
+    const rotMap = { blue: 0, yellow: 90, green: 180, red: 270 };
+    const boardRotDeg = rotMap[myColor] ?? 0;
+
+    // HUD badges mapping so Player 0 is always bottom-left badge, etc.
+    const blIdx = colorPlayers[myColor] ?? 0;
+    const clockwiseColors = ['blue', 'yellow', 'green', 'red'];
+    const myIdxInClockwise = clockwiseColors.indexOf(myColor);
+    
+    const tlColor = clockwiseColors[(myIdxInClockwise + 1) % 4];
+    const trColor = clockwiseColors[(myIdxInClockwise + 2) % 4];
+    const brColor = clockwiseColors[(myIdxInClockwise + 3) % 4];
+
+    const tlIdx = colorPlayers[tlColor] ?? -1;
+    const trIdx = colorPlayers[trColor] ?? -1;
+    const brIdx = colorPlayers[brColor] ?? -1;
+
+    const redSix = isSixActiveForPlayer(colorPlayers.red ?? -1);
+    const greenSix = isSixActiveForPlayer(colorPlayers.green ?? -1);
+    const yellowSix = isSixActiveForPlayer(colorPlayers.yellow ?? -1);
+    const blueSix = isSixActiveForPlayer(colorPlayers.blue ?? -1);
 
     const isTeamUp = (ludoMatchIsOffline && selectedSubMode.startsWith('pass') && passPlaySubType === 'teamup') || selectedSubMode.includes('teamup');
     const teamStyleBase = 'position:absolute;z-index:6;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:900;letter-spacing:0.08em;color:rgba(255,255,255,0.88);background:linear-gradient(145deg,rgba(15,23,42,0.55),rgba(30,41,59,0.35));border:1px solid rgba(255,255,255,0.35);box-shadow:0 2px 0 rgba(0,0,0,0.45),0 3px 6px rgba(0,0,0,0.3);text-shadow:0 1px 2px rgba(0,0,0,0.8);pointer-events:none;';
-    const labelRedTL    = isTeamUp ? `<span style="${teamStyleBase}top:5px;left:6px;">TEAM B</span>` : '';
-    const labelGreenTR  = isTeamUp ? `<span style="${teamStyleBase}top:5px;right:6px;">TEAM A</span>` : '';
-    const labelBlueBL   = isTeamUp ? `<span style="${teamStyleBase}bottom:5px;left:6px;">TEAM A</span>` : '';
-    const labelYellowBR = isTeamUp ? `<span style="${teamStyleBase}bottom:5px;right:6px;">TEAM B</span>` : '';
+    const labelRedTL    = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}top:5px;left:6px;">TEAM B</span>` : '';
+    const labelGreenTR  = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}top:5px;right:6px;">TEAM A</span>` : '';
+    const labelBlueBL   = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}bottom:5px;left:6px;">TEAM A</span>` : '';
+    const labelYellowBR = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}bottom:5px;right:6px;">TEAM B</span>` : '';
 
     let cells = '';
     for (let row = 0; row < 15; row++) for (let col = 0; col < 15; col++) {
@@ -800,7 +823,28 @@ function render4PlayerLudoStage(stage) {
         cells += `<div class="${cls}" data-cell="${row},${col}" style="grid-row:${row + 1};grid-column:${col + 1}"><div class="piece-stack" data-cell-stack="${row},${col}"></div></div>`;
     }
 
+    const rIdx = colorPlayers.red ?? -1;
+    const gIdx = colorPlayers.green ?? -1;
+    const bIdx = colorPlayers.blue ?? -1;
+    const yIdx = colorPlayers.yellow ?? -1;
+
     const makePinSpot = (colorClass, playerIndex, pieceIndex) => `<div class="token-spot ${colorClass}">${playerIndex >= 0 && activePlayersList[playerIndex].tokens[pieceIndex].progress < 0 ? createLudoPieceMarkup(playerIndex, pieceIndex) : ''}</div>`;
+
+    stage.innerHTML = `
+        <div class="lk-hud-row">${buildPlayerBadgeHTML(tlIdx, false)} ${buildPlayerBadgeHTML(trIdx, true)}</div>
+        <div class="lk-board-box">
+            <div class="ludo-board-grid cam-rot-${boardRotDeg}" style="transform: rotate(${boardRotDeg}deg); transform-origin: center center;">
+                ${cells}
+                <div class="board-home-base base-red ${redSix ? 'base-six-neon' : ''}" style="position:relative;">${labelRedTL}<div class="home-inner-box">${makePinSpot('spot-red',rIdx,0)}${makePinSpot('spot-red',rIdx,1)}${makePinSpot('spot-red',rIdx,2)}${makePinSpot('spot-red',rIdx,3)}</div></div>
+                <div class="board-home-base base-green ${greenSix ? 'base-six-neon' : ''}" style="position:relative;">${labelGreenTR}<div class="home-inner-box">${makePinSpot('spot-green',gIdx,0)}${makePinSpot('spot-green',gIdx,1)}${makePinSpot('spot-green',gIdx,2)}${makePinSpot('spot-green',gIdx,3)}</div></div>
+                <div class="center-home"><div class="piece-stack finish-stack" data-cell-stack="center"></div></div>
+                <div class="board-home-base base-blue ${blueSix ? 'base-six-neon' : ''}" style="position:relative;">${labelBlueBL}<div class="home-inner-box">${makePinSpot('spot-blue',bIdx,0)}${makePinSpot('spot-blue',bIdx,1)}${makePinSpot('spot-blue',bIdx,2)}${makePinSpot('spot-blue',bIdx,3)}</div></div>
+                <div class="board-home-base base-yellow ${yellowSix ? 'base-six-neon' : ''}" style="position:relative;">${labelYellowBR}<div class="home-inner-box">${makePinSpot('spot-yellow',yIdx,0)}${makePinSpot('spot-yellow',yIdx,1)}${makePinSpot('spot-yellow',yIdx,2)}${makePinSpot('spot-yellow',yIdx,3)}</div></div>
+            </div>
+        </div>
+        <div class="lk-hud-row">${buildPlayerBadgeHTML(blIdx, false)} ${buildPlayerBadgeHTML(brIdx, true)}</div>
+    `;
+};
 
     stage.innerHTML = `
         <div class="lk-hud-row">${buildPlayerBadgeHTML(tlIdx, false)} ${buildPlayerBadgeHTML(trIdx, true)}</div>

@@ -2483,3 +2483,24 @@ html, body {
     65%  { opacity: 1; transform: translateY(-50%) scale(1.15) rotate(0deg); }
     100% { opacity: 0; transform: translateY(-85%) scale(0.4); }
 }
+
+/* =========================================================
+   PERFECT BOTTOM-LEFT PLAYER HOME BASE BOARD ROTATION FIX
+   ========================================================= */
+.ludo-board-grid.cam-rot-0 { transform: rotate(0deg); }
+.ludo-board-grid.cam-rot-90 { transform: rotate(90deg); }
+.ludo-board-grid.cam-rot-180 { transform: rotate(180deg); }
+.ludo-board-grid.cam-rot-270 { transform: rotate(270deg); }
+
+/* Keep tokens, pins and home indicators upright and perfectly aligned inside cells during board rotation */
+.ludo-board-grid.cam-rot-90 .lk-pin-token,
+.ludo-board-grid.cam-rot-90 .finish-token,
+.ludo-board-grid.cam-rot-90 .team-base-tag { transform: rotate(-90deg); }
+
+.ludo-board-grid.cam-rot-180 .lk-pin-token,
+.ludo-board-grid.cam-rot-180 .finish-token,
+.ludo-board-grid.cam-rot-180 .team-base-tag { transform: rotate(-180deg); }
+
+.ludo-board-grid.cam-rot-270 .lk-pin-token,
+.ludo-board-grid.cam-rot-270 .finish-token,
+.ludo-board-grid.cam-rot-270 .team-base-tag { transform: rotate(-270deg); }
