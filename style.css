@@ -1957,3 +1957,529 @@ html, body {
         min-width: 270px !important;
     }
 }
+/* =========================================================
+   1. INSTANT 3D ANIMATED COMING SOON & COLOR PICKER POPUPS
+   ========================================================= */
+#publishingSoonModal,
+#aiColorSelectModal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    background: rgba(5, 10, 25, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+}
+
+#publishingSoonModal.show-3d-popup,
+#aiColorSelectModal.show-3d-popup {
+    display: flex !important;
+    animation: instantPopupBackdrop 0.22s ease-out forwards !important;
+}
+
+#publishingSoonModal .modal-box,
+#aiColorSelectModal .modal-box {
+    animation: popup3DBounceIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    transform-origin: center center;
+}
+
+@keyframes instantPopupBackdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popup3DBounceIn {
+    0% { opacity: 0; transform: scale(0.65) translateY(35px) rotateX(-18deg); }
+    70% { opacity: 1; transform: scale(1.04) translateY(-4px) rotateX(4deg); }
+    100% { opacity: 1; transform: scale(1) translateY(0) rotateX(0deg); }
+}
+
+/* AI Token Color Picker Grid */
+.ai-color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin: 18px 0 22px;
+}
+.ai-color-option-card {
+    padding: 16px 12px;
+    border-radius: 18px;
+    border: 2.5px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(15, 23, 42, 0.7));
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.45);
+}
+.ai-color-option-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    border-color: #ffffff;
+}
+.ai-color-option-card.selected {
+    border-color: #fde047 !important;
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.5), 0 0 22px rgba(250, 204, 21, 0.65) !important;
+    transform: translateY(-3px) scale(1.04);
+}
+.ai-color-pin-preview {
+    width: 38px !important;
+    height: 52px !important;
+    position: relative;
+}
+.ai-color-option-card strong {
+    font-size: 14px;
+    color: #ffffff;
+    letter-spacing: 0.4px;
+}
+
+/* =========================================================
+   2. 3D ROYAL CROWN DIRECTLY ON TOP OF AVATAR (NO "KING" TEXT)
+   ========================================================= */
+.bounty-crown-badge,
+.live-great-star {
+    display: none !important;
+}
+
+.lk-avatar-frame {
+    overflow: visible !important;
+    position: relative !important;
+}
+
+.avatar-3d-king-crown {
+    position: absolute;
+    top: -19px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 35;
+    font-size: 22px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    filter: 
+        drop-shadow(0 3px 2px rgba(0, 0, 0, 0.85))
+        drop-shadow(0 0 8px #facc15)
+        drop-shadow(0 0 16px #f59e0b);
+    animation: crown3DFloat 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes crown3DFloat {
+    0% {
+        transform: translateX(-50%) translateY(1px) scale(0.96) rotate(-5deg);
+    }
+    100% {
+        transform: translateX(-50%) translateY(-4px) scale(1.14) rotate(5deg);
+    }
+}
+/* =========================================================
+   1. ALWAYS BOTTOM-LEFT PLAYER CAMERA ROTATION FIX
+   ========================================================= */
+.ludo-board-grid.cam-rot-0 { transform: rotate(0deg); }
+.ludo-board-grid.cam-rot-90 { transform: rotate(90deg); }
+.ludo-board-grid.cam-rot-180 { transform: rotate(180deg); }
+.ludo-board-grid.cam-rot-270 { transform: rotate(270deg); }
+
+/* Keep 3D pins, stars and arrows upright when board rotates for player's bottom-left view */
+.ludo-board-grid.cam-rot-90 .lk-pin-token,
+.ludo-board-grid.cam-rot-90 .finish-token,
+.ludo-board-grid.cam-rot-90 .team-base-tag {
+    transform: rotate(-90deg);
+}
+.ludo-board-grid.cam-rot-180 .lk-pin-token,
+.ludo-board-grid.cam-rot-180 .finish-token,
+.ludo-board-grid.cam-rot-180 .team-base-tag {
+    transform: rotate(-180deg);
+}
+.ludo-board-grid.cam-rot-270 .lk-pin-token,
+.ludo-board-grid.cam-rot-270 .finish-token,
+.ludo-board-grid.cam-rot-270 .team-base-tag {
+    transform: rotate(-270deg);
+}
+
+/* Keep legal-move bounce working smoothly with counter-rotation */
+.ludo-board-grid.cam-rot-90 .lk-pin-token.legal-move { animation: legalRot90 0.5s ease-in-out infinite alternate !important; }
+.ludo-board-grid.cam-rot-180 .lk-pin-token.legal-move { animation: legalRot180 0.5s ease-in-out infinite alternate !important; }
+.ludo-board-grid.cam-rot-270 .lk-pin-token.legal-move { animation: legalRot270 0.5s ease-in-out infinite alternate !important; }
+
+@keyframes legalRot90 {
+    from { transform: rotate(-90deg) scale(1.12); }
+    to { transform: rotate(-90deg) scale(1.34); }
+}
+@keyframes legalRot180 {
+    from { transform: rotate(-180deg) scale(1.12); }
+    to { transform: rotate(-180deg) scale(1.34); }
+}
+@keyframes legalRot270 {
+    from { transform: rotate(-270deg) scale(1.12); }
+    to { transform: rotate(-270deg) scale(1.34); }
+}
+
+/* =========================================================
+   2. 3D AI EMOJI REACTION POPUP BESIDE AI AVATAR ONLY
+   ========================================================= */
+.ai-avatar-emoji-pop {
+    position: absolute;
+    top: 50%;
+    z-index: 98;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffffff, #fef08a 55%, #f59e0b 100%);
+    border: 2.5px solid #ffffff;
+    box-shadow: 
+        0 8px 18px rgba(0, 0, 0, 0.8),
+        0 0 18px rgba(250, 204, 21, 0.85),
+        inset 0 2px 4px rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    transform-style: preserve-3d;
+}
+
+/* Pop out strictly beside the badge (Right side of left badges, Left side of right badges) */
+.lk-player-badge:not(.right-side) .ai-avatar-emoji-pop {
+    right: -54px;
+}
+.lk-player-badge.right-side .ai-avatar-emoji-pop {
+    left: -54px;
+}
+
+.ai-avatar-emoji-pop.mood-afraid {
+    background: radial-gradient(circle at 30% 30%, #e0f2fe, #38bdf8 60%, #0284c7 100%);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.8), 0 0 18px rgba(56, 189, 248, 0.9);
+    animation: aiEmojiAfraidShake 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-haha {
+    background: radial-gradient(circle at 30% 30%, #fef9c3, #facc15 60%, #ea580c 100%);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.8), 0 0 20px rgba(250, 204, 21, 0.95);
+    animation: aiEmojiHahaBounce 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-cry {
+    background: radial-gradient(circle at 30% 30%, #ede9fe, #818cf8 60%, #312e81 100%);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.8), 0 0 18px rgba(129, 140, 248, 0.9);
+    animation: aiEmojiCrySob 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes aiEmojiAfraidShake {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2); }
+    15%  { opacity: 1; transform: translateY(-50%) scale(1.25) rotate(-10deg); }
+    25%  { transform: translateY(-50%) scale(1.15) translateX(-4px) rotate(10deg); }
+    35%  { transform: translateY(-50%) scale(1.18) translateX(4px) rotate(-10deg); }
+    45%  { transform: translateY(-50%) scale(1.15) translateX(-4px) rotate(10deg); }
+    55%  { transform: translateY(-50%) scale(1.15) translateX(4px) rotate(-8deg); }
+    70%  { opacity: 1; transform: translateY(-50%) scale(1.08) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-65%) scale(0.4); }
+}
+
+@keyframes aiEmojiHahaBounce {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2) rotate(-20deg); }
+    18%  { opacity: 1; transform: translateY(-65%) scale(1.32) rotate(12deg); }
+    32%  { transform: translateY(-42%) scale(1.05) rotate(-8deg); }
+    48%  { transform: translateY(-60%) scale(1.24) rotate(8deg); }
+    65%  { opacity: 1; transform: translateY(-50%) scale(1.1) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-80%) scale(0.45); }
+}
+
+@keyframes aiEmojiCrySob {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2); }
+    18%  { opacity: 1; transform: translateY(-45%) scale(1.25) rotate(-6deg); }
+    36%  { transform: translateY(-35%) scale(1.12) rotate(6deg); }
+    54%  { transform: translateY(-42%) scale(1.18) rotate(-5deg); }
+    72%  { opacity: 1; transform: translateY(-32%) scale(1.08) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-15%) scale(0.45); }
+}
+
+/* =========================================================
+   3D FLYING GOLDEN COINS ANIMATION & WINNER COIN BADGE
+   ========================================================= */
+.flying-3d-gold-coin {
+    position: fixed;
+    z-index: 100000;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fef08a 25%, #facc15 58%, #ca8a04 85%, #854d0e 100%);
+    border: 2px solid #fef9c3;
+    box-shadow: 
+        0 0 14px rgba(250, 204, 21, 0.95),
+        0 6px 12px rgba(0, 0, 0, 0.65),
+        inset 0 2px 3px rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 900;
+    color: #713f12;
+    pointer-events: none;
+    user-select: none;
+    transform-style: preserve-3d;
+    will-change: transform, opacity;
+}
+
+.flying-3d-gold-coin::after {
+    content: '★';
+    font-size: 15px;
+    color: #78350f;
+    text-shadow: 0 1px 0 #fef08a;
+}
+
+@keyframes coinTargetPulse3D {
+    0%   { transform: scale(1); filter: brightness(1); }
+    50%  { transform: scale(1.28); filter: brightness(1.5) drop-shadow(0 0 16px #facc15); }
+    100% { transform: scale(1); filter: brightness(1); }
+}
+
+.coin-pill-receiving {
+    animation: coinTargetPulse3D 0.32s ease-out;
+}
+
+.winner-coin-reward-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fef08a 0%, #facc15 50%, #d97706 100%);
+    border: 2px solid #ffffff;
+    color: #1e1b4b;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    box-shadow: 0 4px 0 #78350f, 0 0 20px rgba(250, 204, 21, 0.85);
+    animation: winnerTrophyFloat 1s ease-in-out infinite alternate;
+}
+
+/* =========================================================
+   ULTRA-HD CRISP SHARP 3D EMOJI STICKER REACTIONS
+   ========================================================= */
+.ai-avatar-emoji-pop {
+    position: absolute;
+    top: 50%;
+    z-index: 999;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fef08a 48%, #f59e0b 85%, #b45309 100%);
+    border: 3px solid #ffffff;
+    box-shadow: 
+        0 10px 24px rgba(0, 0, 0, 0.85),
+        0 0 25px rgba(250, 204, 21, 0.95),
+        inset 0 2px 5px rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
+}
+
+/* Position strictly beside the player badge depending on left/right side */
+.lk-player-badge:not(.right-side) .ai-avatar-emoji-pop {
+    right: -58px;
+}
+.lk-player-badge.right-side .ai-avatar-emoji-pop {
+    left: -58px;
+}
+
+.ai-avatar-emoji-pop.mood-afraid {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 45%, #38bdf8 78%, #0369a1 100%);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.85), 0 0 25px rgba(56, 189, 248, 0.95), inset 0 2px 5px rgba(255,255,255,0.95);
+    animation: aiEmojiAfraidShake 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-haha {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fef9c3 45%, #facc15 78%, #c2410c 100%);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.85), 0 0 28px rgba(250, 204, 21, 0.98), inset 0 2px 5px rgba(255,255,255,0.95);
+    animation: aiEmojiHahaBounce 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-cry {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #ede9fe 45%, #818cf8 78%, #3730a3 100%);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.85), 0 0 25px rgba(129, 140, 248, 0.95), inset 0 2px 5px rgba(255,255,255,0.95);
+    animation: aiEmojiCrySob 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-rage {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fee2e2 45%, #ef4444 78%, #991b1b 100%) !important;
+    box-shadow: 
+        0 10px 26px rgba(0, 0, 0, 0.9),
+        0 0 30px rgba(239, 68, 68, 0.98),
+        inset 0 2px 5px rgba(255, 255, 255, 0.95) !important;
+    animation: aiEmojiRageSteam 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+@keyframes aiEmojiAfraidShake {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2); }
+    15%  { opacity: 1; transform: translateY(-50%) scale(1.25) rotate(-10deg); }
+    25%  { transform: translateY(-50%) scale(1.15) translateX(-4px) rotate(10deg); }
+    35%  { transform: translateY(-50%) scale(1.18) translateX(4px) rotate(-10deg); }
+    45%  { transform: translateY(-50%) scale(1.15) translateX(-4px) rotate(10deg); }
+    55%  { transform: translateY(-50%) scale(1.15) translateX(4px) rotate(-8deg); }
+    70%  { opacity: 1; transform: translateY(-50%) scale(1.08) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-65%) scale(0.4); }
+}
+
+@keyframes aiEmojiHahaBounce {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2) rotate(-20deg); }
+    18%  { opacity: 1; transform: translateY(-65%) scale(1.35) rotate(12deg); }
+    32%  { transform: translateY(-42%) scale(1.05) rotate(-8deg); }
+    48%  { transform: translateY(-60%) scale(1.26) rotate(8deg); }
+    65%  { opacity: 1; transform: translateY(-50%) scale(1.12) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-80%) scale(0.45); }
+}
+
+@keyframes aiEmojiCrySob {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2); }
+    18%  { opacity: 1; transform: translateY(-45%) scale(1.25) rotate(-6deg); }
+    36%  { transform: translateY(-35%) scale(1.12) rotate(6deg); }
+    54%  { transform: translateY(-42%) scale(1.18) rotate(-5deg); }
+    72%  { opacity: 1; transform: translateY(-32%) scale(1.08) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-15%) scale(0.45); }
+}
+
+@keyframes aiEmojiRageSteam {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2) rotate(0deg); }
+    15%  { opacity: 1; transform: translateY(-65%) scale(1.38) rotate(-12deg); }
+    30%  { transform: translateY(-42%) scale(1.1) rotate(12deg); }
+    45%  { transform: translateY(-60%) scale(1.3) rotate(-10deg); }
+    65%  { opacity: 1; transform: translateY(-50%) scale(1.15) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-85%) scale(0.4); }
+}
+/* =========================================================
+   FIXED ROTATION & SHIFTING BUG FOR LUDO BOARD TOKENS
+   ========================================================= */
+.ludo-board-grid.cam-rot-0,
+.ludo-board-grid.cam-rot-90,
+.ludo-board-grid.cam-rot-180,
+.ludo-board-grid.cam-rot-270 {
+    transform: none !important;
+}
+
+.ludo-board-grid.cam-rot-90 .lk-pin-token,
+.ludo-board-grid.cam-rot-90 .finish-token,
+.ludo-board-grid.cam-rot-90 .team-base-tag,
+.ludo-board-grid.cam-rot-180 .lk-pin-token,
+.ludo-board-grid.cam-rot-180 .finish-token,
+.ludo-board-grid.cam-rot-180 .team-base-tag,
+.ludo-board-grid.cam-rot-270 .lk-pin-token,
+.ludo-board-grid.cam-rot-270 .finish-token,
+.ludo-board-grid.cam-rot-270 .team-base-tag {
+    transform: none !important;
+}
+
+/* Crisp Ultra-HD AI Emoji Popups */
+.ai-avatar-emoji-pop {
+    position: absolute;
+    top: 50%;
+    z-index: 999;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fef08a 48%, #f59e0b 85%, #b45309 100%);
+    border: 3px solid #ffffff;
+    box-shadow: 
+        0 10px 24px rgba(0, 0, 0, 0.85),
+        0 0 25px rgba(250, 204, 21, 0.95),
+        inset 0 2px 5px rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
+}
+
+.lk-player-badge:not(.right-side) .ai-avatar-emoji-pop {
+    right: -58px;
+}
+.lk-player-badge.right-side .ai-avatar-emoji-pop {
+    left: -58px;
+}
+
+.ai-avatar-emoji-pop.mood-afraid {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 45%, #38bdf8 78%, #0369a1 100%);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.85), 0 0 25px rgba(56, 189, 248, 0.95), inset 0 2px 5px rgba(255,255,255,0.95);
+    animation: aiEmojiAfraidShake 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-haha {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fef9c3 45%, #facc15 78%, #c2410c 100%);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.85), 0 0 28px rgba(250, 204, 21, 0.98), inset 0 2px 5px rgba(255,255,255,0.95);
+    animation: aiEmojiHahaBounce 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-cry {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #ede9fe 45%, #818cf8 78%, #3730a3 100%);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.85), 0 0 25px rgba(129, 140, 248, 0.95), inset 0 2px 5px rgba(255,255,255,0.95);
+    animation: aiEmojiCrySob 2.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-avatar-emoji-pop.mood-rage {
+    background: radial-gradient(circle at 32% 28%, #ffffff 0%, #fee2e2 45%, #ef4444 78%, #991b1b 100%) !important;
+    box-shadow: 
+        0 10px 26px rgba(0, 0, 0, 0.9),
+        0 0 30px rgba(239, 68, 68, 0.98),
+        inset 0 2px 5px rgba(255, 255, 255, 0.95) !important;
+    animation: aiEmojiRageSteam 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+@keyframes aiEmojiAfraidShake {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2); }
+    15%  { opacity: 1; transform: translateY(-50%) scale(1.25) rotate(-10deg); }
+    25%  { transform: translateY(-50%) scale(1.15) translateX(-4px) rotate(10deg); }
+    35%  { transform: translateY(-50%) scale(1.18) translateX(4px) rotate(-10deg); }
+    45%  { transform: translateY(-50%) scale(1.15) translateX(-4px) rotate(10deg); }
+    55%  { transform: translateY(-50%) scale(1.15) translateX(4px) rotate(-8deg); }
+    70%  { opacity: 1; transform: translateY(-50%) scale(1.08) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-65%) scale(0.4); }
+}
+
+@keyframes aiEmojiHahaBounce {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2) rotate(-20deg); }
+    18%  { opacity: 1; transform: translateY(-65%) scale(1.35) rotate(12deg); }
+    32%  { transform: translateY(-42%) scale(1.05) rotate(-8deg); }
+    48%  { transform: translateY(-60%) scale(1.26) rotate(8deg); }
+    65%  { opacity: 1; transform: translateY(-50%) scale(1.12) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-80%) scale(0.45); }
+}
+
+@keyframes aiEmojiCrySob {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2); }
+    18%  { opacity: 1; transform: translateY(-45%) scale(1.25) rotate(-6deg); }
+    36%  { transform: translateY(-35%) scale(1.12) rotate(6deg); }
+    54%  { transform: translateY(-42%) scale(1.18) rotate(-5deg); }
+    72%  { opacity: 1; transform: translateY(-32%) scale(1.08) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-15%) scale(0.45); }
+}
+
+@keyframes aiEmojiRageSteam {
+    0%   { opacity: 0; transform: translateY(-50%) scale(0.2) rotate(0deg); }
+    15%  { opacity: 1; transform: translateY(-65%) scale(1.38) rotate(-12deg); }
+    30%  { transform: translateY(-42%) scale(1.1) rotate(12deg); }
+    45%  { transform: translateY(-60%) scale(1.3) rotate(-10deg); }
+    65%  { opacity: 1; transform: translateY(-50%) scale(1.15) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-85%) scale(0.4); }
+}

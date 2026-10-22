@@ -2654,3 +2654,1139 @@ window.openAdminModal = function() {
     _origOpenAdminModal2.apply(this, arguments);
     setTimeout(injectCleanAdminHubUI, 50);
 };
+
+/* =====================================================================
+   INSTANT 3D COMING SOON POPUP, AI TOKEN COLOR PICKER POPUP,
+   AND INTERVAL-ONLY 3D AVATAR CROWN (NO KING TEXT, NO START KING)
+   ===================================================================== */
+
+// 1. INSTANT 3D ANIMATED COMING SOON POPUP ON ONLINE / TOURNAMENT CLICK
+function triggerInstant3DComingSoonPopup() {
+    // Close online sub-popup if it tried to open
+    const onlinePopup = document.getElementById('onlineMatchPopup');
+    if (onlinePopup) onlinePopup.style.display = 'none';
+
+    let modal = document.getElementById('publishingSoonModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'publishingSoonModal';
+        modal.className = 'modal-overlay';
+        modal.onclick = (e) => { if (e.target === modal) closePublishingSoonModal(); };
+        modal.innerHTML = `
+            <div class="modal-box compact-modal neon-3d-modal" style="text-align: center; padding: 30px 22px;">
+                <div style="font-size: 62px; margin-bottom: 10px; filter: drop-shadow(0 8px 16px rgba(0,242,254,0.5)); animation: floatIcon 2.5s ease-in-out infinite;">🚀🏆</div>
+                <h2 style="font-size: 24px; font-weight: 900; background: linear-gradient(90deg, #fde047, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: 1px;">COMING SOON IN 3D!</h2>
+                <p class="profile-help-text" style="font-size: 14px; color: #e2e8f0; line-height: 1.6; margin-bottom: 20px;">
+                    🌐 <strong>Online Multiplayer</strong> & 🏆 <strong>Global Tournament Mode</strong> are currently under final development!<br>
+                    <span style="color: #fde047; font-weight: 800;">Enjoy Smart AI & Pass & Play (Individual & 2v2 Team Up) matches right now!</span>
+                </p>
+                <button type="button" class="primary-btn" onclick="closePublishingSoonModal()">🎮 Got It! Play Offline Now</button>
+            </div>
+        `;
+    }
+    // Always move to the end of document.body so it sits above #fullScreenSetupView
+    if (modal.parentNode !== document.body) {
+        document.body.appendChild(modal);
+    } else {
+        document.body.appendChild(modal);
+    }
+
+    modal.style.zIndex = '9999';
+    modal.classList.remove('show-3d-popup');
+    void modal.offsetWidth; // Force reflow for fresh 3D animation every click
+    modal.classList.add('show-3d-popup');
+    modal.style.display = 'flex';
+}
+
+window.openPublishingSoonModal = triggerInstant3DComingSoonPopup;
+window.openPublishingSoonModal3D = triggerInstant3DComingSoonPopup;
+window.closePublishingSoonModal = function() {
+    const modal = document.getElementById('publishingSoonModal');
+    if (modal) {
+        modal.classList.remove('show-3d-popup');
+        modal.style.display = 'none';
+    }
+};
+window.handleOnlineModeClick = function() {
+    triggerInstant3DComingSoonPopup();
+};
+window.handleTourneyModeClick = function() {
+    triggerInstant3DComingSoonPopup();
+};
+
+// 2. SMART AI TOKEN COLOR SELECTION POPUP BEFORE MATCH STARTS
+let chosenAITokenColor = 'blue';
+let bypassAIColorPopupOnce = false;
+
+function openAITokenColorPickerModal() {
+    const count = parseInt(matchConfigValue, 10) || 2;
+    const isRadial = count > 4;
+
+    const colorOptions = isRadial
+        ? [
+            { id: 'red', name: 'Crimson Red', hex: '#dc1824' },
+            { id: 'green', name: 'Emerald Green', hex: '#008844' },
+            { id: 'orange', name: 'Obsidian Black', hex: '#111827' },
+            { id: 'blue', name: 'Ocean Blue', hex: '#0765a8' },
+            { id: 'yellow', name: 'Solar Gold', hex: '#e6c200' },
+            { id: 'purple', name: 'Royal Purple', hex: '#7e22ce' }
+        ]
+        : [
+            { id: 'blue', name: 'Ocean Blue', hex: '#0765a8' },
+            { id: 'red', name: 'Crimson Red', hex: '#dc1824' },
+            { id: 'green', name: 'Emerald Green', hex: '#008844' },
+            { id: 'yellow', name: 'Solar Gold', hex: '#e6c200' }
+        ];
+
+    if (!colorOptions.some(c => c.id === chosenAITokenColor)) {
+        chosenAITokenColor = colorOptions[0].id;
+    }
+
+    let modal = document.getElementById('aiColorSelectModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'aiColorSelectModal';
+        modal.className = 'modal-overlay';
+        modal.onclick = (e) => { if (e.target === modal) closeAITokenColorPickerModal(); };
+        document.body.appendChild(modal);
+    } else {
+        document.body.appendChild(modal);
+    }
+
+    const cardsHtml = colorOptions.map(c => {
+        const isSelected = c.id === chosenAITokenColor;
+        const pinStyle = isRadial ? `background: radial-gradient(circle at 35% 25%, #fff, ${c.hex} 60%);` : '';
+        return `
+            <div class="ai-color-option-card ${isSelected ? 'selected' : ''}" data-color-id="${c.id}" onclick="selectAITokenColorChoice('${c.id}')">
+                <div class="lk-pin-token pin-${c.id} ai-color-pin-preview" style="${pinStyle}"></div>
+                <strong>${c.name}</strong>
+            </div>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="modal-box compact-modal neon-3d-modal" style="text-align: center; max-width: 420px;">
+            <div class="modal-header" style="margin-bottom: 8px;">
+                <span class="modal-title">🎨 Choose Your Token Color</span>
+                <button class="notice-close" onclick="closeAITokenColorPickerModal()">×</button>
+            </div>
+            <p class="profile-help-text" style="margin-bottom: 6px;">Select the token color you want to play with against Smart AI:</p>
+            <div class="ai-color-picker-grid">
+                ${cardsHtml}
+            </div>
+            <button type="button" class="primary-btn" onclick="confirmAITokenColorAndLaunch()">🚀 Start AI Match Now</button>
+        </div>
+    `;
+
+    modal.classList.remove('show-3d-popup');
+    void modal.offsetWidth;
+    modal.classList.add('show-3d-popup');
+    modal.style.display = 'flex';
+}
+
+window.selectAITokenColorChoice = function(colorId) {
+    chosenAITokenColor = colorId;
+    document.querySelectorAll('#aiColorSelectModal .ai-color-option-card').forEach(card => {
+        card.classList.toggle('selected', card.getAttribute('data-color-id') === colorId);
+    });
+};
+
+window.closeAITokenColorPickerModal = function() {
+    const modal = document.getElementById('aiColorSelectModal');
+    if (modal) {
+        modal.classList.remove('show-3d-popup');
+        modal.style.display = 'none';
+    }
+};
+
+window.confirmAITokenColorAndLaunch = function() {
+    closeAITokenColorPickerModal();
+
+    // Apply chosen color to LUDO_COLORS_BY_COUNT so player (index 0) gets their exact chosen color!
+    const oppositeCornerMap = { blue: 'green', green: 'blue', red: 'yellow', yellow: 'red' };
+    const clockwise4 = ['blue', 'red', 'green', 'yellow'];
+    if (clockwise4.includes(chosenAITokenColor) && typeof LUDO_COLORS_BY_COUNT !== 'undefined') {
+        const startIdx = clockwise4.indexOf(chosenAITokenColor);
+        const ordered = Array.from({ length: 4 }, (_, i) => clockwise4[(startIdx + i) % 4]);
+        LUDO_COLORS_BY_COUNT[2] = [chosenAITokenColor, oppositeCornerMap[chosenAITokenColor]];
+        LUDO_COLORS_BY_COUNT[3] = [ordered[0], ordered[1], ordered[2]];
+        LUDO_COLORS_BY_COUNT[4] = ordered;
+        if (typeof userInventoryPrefs !== 'undefined' && userInventoryPrefs) {
+            userInventoryPrefs.tokenColor = chosenAITokenColor;
+        }
+    }
+
+    bypassAIColorPopupOnce = true;
+    launchGameMatch();
+
+    // If 5 or 6 players radial mode, rotate color assignment so player 0 gets chosenAITokenColor
+    const count = parseInt(matchConfigValue, 10) || 2;
+    if (count > 4 && typeof LUDO_RADIAL_COLOR_ORDER !== 'undefined' && Array.isArray(activePlayersList) && activePlayersList.length === count) {
+        const rIdx = LUDO_RADIAL_COLOR_ORDER.indexOf(chosenAITokenColor);
+        if (rIdx >= 0) {
+            activePlayersList.forEach((p, idx) => {
+                const cIndex = (rIdx + idx) % 6;
+                p.color = LUDO_RADIAL_COLOR_ORDER[cIndex];
+                p.radialIndex = cIndex;
+                p.startIndex = cIndex * 10;
+                p.homeLane = LUDO_RADIAL_HOME_LANES[cIndex];
+            });
+            renderFullStage();
+        }
+    }
+};
+
+// Intercept launchGameMatch to show Token Color Picker when playing Ludo vs Smart AI
+const _prevLaunchGameMatchForColor = window.launchGameMatch;
+window.launchGameMatch = function() {
+    if (typeof selectedSubMode === 'string' && (selectedSubMode.startsWith('online') || selectedSubMode === 'tourney')) {
+        triggerInstant3DComingSoonPopup();
+        return;
+    }
+    if (activeGameType === 'ludo' && selectedSubMode === 'ai' && !bypassAIColorPopupOnce) {
+        openAITokenColorPickerModal();
+        return;
+    }
+    bypassAIColorPopupOnce = false;
+
+    // Reset King state at the start of every match so NO ONE is King from the beginning!
+    liveGreatPlayerIndex = -1;
+    liveGreatPlayerUntil = 0;
+    bountyKingPlayerIndex = -1;
+
+    _prevLaunchGameMatchForColor.apply(this, arguments);
+};
+
+// 3. FIX INTERVAL-ONLY 3D CROWN ON AVATAR (NO KING AT START, NO "KING" TEXT)
+window.getLiveGreatStarMarkup = function() {
+    // Never show "★ KING" text beside player name
+    return '';
+};
+
+function renderAvatar3DCrowns() {
+    // Remove any existing crowns first
+    document.querySelectorAll('.avatar-3d-king-crown, .bounty-crown-badge').forEach(el => el.remove());
+
+    // Only show crown during the 1-minute active interval window
+    if (liveGreatPlayerIndex < 0 || Date.now() >= liveGreatPlayerUntil) return;
+    if (ludoMatchWinner !== null || snakeMatchWinner !== null) return;
+
+    const targetBadge = document.getElementById(`badge_${liveGreatPlayerIndex}`);
+    const avatarFrame = targetBadge?.querySelector('.lk-avatar-frame');
+    if (avatarFrame && !avatarFrame.querySelector('.avatar-3d-king-crown')) {
+        const crown = document.createElement('div');
+        crown.className = 'avatar-3d-king-crown';
+        crown.textContent = '👑';
+        crown.title = 'Leading Player!';
+        avatarFrame.appendChild(crown);
+    }
+}
+
+// Disable continuous bounty king crown from appearing on every turn; keep clutch recorder intact
+const _origEvaluateBountyAndClutch = window.evaluateBountyAndClutchState;
+window.evaluateBountyAndClutchState = function() {
+    if (typeof _origEvaluateBountyAndClutch === 'function') {
+        _origEvaluateBountyAndClutch.apply(this, arguments);
+    }
+    bountyKingPlayerIndex = -1;
+    document.querySelectorAll('.bounty-crown-badge').forEach(el => el.remove());
+    renderAvatar3DCrowns();
+};
+
+// Trigger the 1-minute 3D Crown ONLY on periodic intervals (every 2.5 minutes) once match has real progress
+window.startLiveGreatPlayerPeriodicScheduler = function() {
+    clearTimeout(liveGreatPlayerTimer);
+    clearInterval(liveGreatPlayerInterval);
+    liveGreatPlayerIndex = -1;
+    liveGreatPlayerUntil = 0;
+    bountyKingPlayerIndex = -1;
+
+    // Check every 150 seconds (2.5 minutes) and crown the leader for 60 seconds (1 minute)
+    liveGreatPlayerInterval = setInterval(() => {
+        if (document.getElementById('gameArenaScreen')?.style.display === 'none') return;
+        updateLiveGreatPlayer();
+    }, 150000);
+};
+
+const _origUpdateLiveGreatPlayer = window.updateLiveGreatPlayer;
+window.updateLiveGreatPlayer = function() {
+    if (typeof _origUpdateLiveGreatPlayer === 'function') {
+        _origUpdateLiveGreatPlayer.apply(this, arguments);
+    }
+    renderAvatar3DCrowns();
+};
+
+/* =====================================================================
+   1. ALWAYS BOTTOM-LEFT HOME BASE FOR PLAYER 0 (ALL MODES & COLORS)
+   2. CALM AMBIENT LOBBY MUSIC (STOPS AUTOMATICALLY IN GAMEPLAY)
+   3. 3D AI EMOJI REACTIONS & FUNNY SOUNDS BESIDE AI AVATAR
+   ===================================================================== */
+
+// ---------------------------------------------------------------------
+// PART 1: ALWAYS KEEP PLAYER 1 (YOU) AT THE BOTTOM-LEFT CORNER
+// ---------------------------------------------------------------------
+window.render4PlayerLudoStage = function(stage) {
+    const colorPlayers = Object.fromEntries(activePlayersList.map((player, index) => [player.color, index]));
+    
+    // Determine Player 0's color so we rotate the board & HUD to put Player 0 ALWAYS at Bottom-Left!
+    const myColor = activePlayersList[0]?.color || 'blue';
+    const clockwiseColors = ['blue', 'red', 'green', 'yellow'];
+    const myColorPos = Math.max(0, clockwiseColors.indexOf(myColor));
+
+    // Rotate clockwise order so myColor is first (Bottom-Left), then Top-Left, Top-Right, Bottom-Right
+    const rotatedColors = Array.from({ length: 4 }, (_, i) => clockwiseColors[(myColorPos + i) % 4]);
+    const blColor = rotatedColors[0]; // Always Player 0 (Bottom-Left)
+    const tlColor = rotatedColors[1]; // Top-Left
+    const trColor = rotatedColors[2]; // Top-Right
+    const brColor = rotatedColors[3]; // Bottom-Right
+
+    const blIdx = colorPlayers[blColor] ?? -1;
+    const tlIdx = colorPlayers[tlColor] ?? -1;
+    const trIdx = colorPlayers[trColor] ?? -1;
+    const brIdx = colorPlayers[brColor] ?? -1;
+
+    // Board CSS rotation angle so Player 0's physical home base sits at Bottom-Left
+    const rotMap = { blue: 0, red: 270, green: 180, yellow: 90 };
+    const boardRotDeg = rotMap[myColor] ?? 0;
+
+    const redSix = isSixActiveForPlayer(colorPlayers.red ?? -1);
+    const greenSix = isSixActiveForPlayer(colorPlayers.green ?? -1);
+    const yellowSix = isSixActiveForPlayer(colorPlayers.yellow ?? -1);
+    const blueSix = isSixActiveForPlayer(colorPlayers.blue ?? -1);
+
+    const isTeamUp = (ludoMatchIsOffline && selectedSubMode.startsWith('pass') && passPlaySubType === 'teamup') || selectedSubMode.includes('teamup');
+    const teamStyleBase = 'position:absolute;z-index:6;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:900;letter-spacing:0.08em;color:rgba(255,255,255,0.88);background:linear-gradient(145deg,rgba(15,23,42,0.55),rgba(30,41,59,0.35));border:1px solid rgba(255,255,255,0.35);box-shadow:0 2px 0 rgba(0,0,0,0.45),0 3px 6px rgba(0,0,0,0.3);text-shadow:0 1px 2px rgba(0,0,0,0.8);pointer-events:none;';
+    const labelRedTL    = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}top:5px;left:6px;">TEAM B</span>` : '';
+    const labelGreenTR  = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}top:5px;right:6px;">TEAM A</span>` : '';
+    const labelBlueBL   = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}bottom:5px;left:6px;">TEAM A</span>` : '';
+    const labelYellowBR = isTeamUp ? `<span class="team-base-tag" style="${teamStyleBase}bottom:5px;right:6px;">TEAM B</span>` : '';
+
+    let cells = '';
+    for (let row = 0; row < 15; row++) for (let col = 0; col < 15; col++) {
+        if ((row >= 6 && row <= 8 && col >= 6 && col <= 8) || (row < 6 && col < 6) || (row < 6 && col > 8) || (row > 8 && col < 6) || (row > 8 && col > 8)) continue;
+        let cls = 'board-cell';
+        if (row === 7 && col >= 1 && col <= 5) cls += ' lane-red';
+        if (col === 7 && row >= 1 && row <= 5) cls += ' lane-green';
+        if (row === 7 && col >= 9 && col <= 13) cls += ' lane-yellow';
+        if (col === 7 && row >= 9 && row <= 13) cls += ' lane-blue';
+        if (row === 0 && col === 7) cls += ' arrow-top';
+        if (row === 7 && col === 14) cls += ' arrow-right';
+        if (row === 14 && col === 7) cls += ' arrow-bottom';
+        if (row === 7 && col === 0) cls += ' arrow-left';
+        if (row === 6 && col === 1) cls = 'board-cell start-red' + (redSix ? ' dice-six-highlight' : '');
+        if (row === 1 && col === 8) cls = 'board-cell start-green' + (greenSix ? ' dice-six-highlight' : '');
+        if (row === 8 && col === 13) cls = 'board-cell start-yellow' + (yellowSix ? ' dice-six-highlight' : '');
+        if (row === 13 && col === 6) cls = 'board-cell start-blue' + (blueSix ? ' dice-six-highlight' : '');
+        if (LUDO_STAR_CELLS.has(`${row},${col}`)) cls += ' safe';
+        if (activeCaptureNeonCellKey === `${row},${col}`) cls += ' capture-neon-burst';
+        cells += `<div class="${cls}" data-cell="${row},${col}" style="grid-row:${row + 1};grid-column:${col + 1}"><div class="piece-stack" data-cell-stack="${row},${col}"></div></div>`;
+    }
+
+    const rIdx = colorPlayers.red ?? -1;
+    const gIdx = colorPlayers.green ?? -1;
+    const bIdx = colorPlayers.blue ?? -1;
+    const yIdx = colorPlayers.yellow ?? -1;
+
+    const makePinSpot = (colorClass, playerIndex, pieceIndex) => `<div class="token-spot ${colorClass}">${playerIndex >= 0 && activePlayersList[playerIndex].tokens[pieceIndex].progress < 0 ? createLudoPieceMarkup(playerIndex, pieceIndex) : ''}</div>`;
+
+    stage.innerHTML = `
+        <div class="lk-hud-row">${buildPlayerBadgeHTML(tlIdx, false)} ${buildPlayerBadgeHTML(trIdx, true)}</div>
+        <div class="lk-board-box">
+            <div class="ludo-board-grid cam-rot-${boardRotDeg}">
+                ${cells}
+                <div class="board-home-base base-red ${redSix ? 'base-six-neon' : ''}" style="position:relative;">${labelRedTL}<div class="home-inner-box">${makePinSpot('spot-red',rIdx,0)}${makePinSpot('spot-red',rIdx,1)}${makePinSpot('spot-red',rIdx,2)}${makePinSpot('spot-red',rIdx,3)}</div></div>
+                <div class="board-home-base base-green ${greenSix ? 'base-six-neon' : ''}" style="position:relative;">${labelGreenTR}<div class="home-inner-box">${makePinSpot('spot-green',gIdx,0)}${makePinSpot('spot-green',gIdx,1)}${makePinSpot('spot-green',gIdx,2)}${makePinSpot('spot-green',gIdx,3)}</div></div>
+                <div class="center-home"><div class="piece-stack finish-stack" data-cell-stack="center"></div></div>
+                <div class="board-home-base base-blue ${blueSix ? 'base-six-neon' : ''}" style="position:relative;">${labelBlueBL}<div class="home-inner-box">${makePinSpot('spot-blue',bIdx,0)}${makePinSpot('spot-blue',bIdx,1)}${makePinSpot('spot-blue',bIdx,2)}${makePinSpot('spot-blue',bIdx,3)}</div></div>
+                <div class="board-home-base base-yellow ${yellowSix ? 'base-six-neon' : ''}" style="position:relative;">${labelYellowBR}<div class="home-inner-box">${makePinSpot('spot-yellow',yIdx,0)}${makePinSpot('spot-yellow',yIdx,1)}${makePinSpot('spot-yellow',yIdx,2)}${makePinSpot('spot-yellow',yIdx,3)}</div></div>
+            </div>
+        </div>
+        <div class="lk-hud-row">${buildPlayerBadgeHTML(blIdx, false)} ${buildPlayerBadgeHTML(brIdx, true)}</div>
+    `;
+};
+
+// Also ensure in 5/6-Player Radial Ludo that Player 0's badge & slice are positioned at Bottom-Left (pos-4 = 240 deg)
+const _origRender6PlayerRadialLudoStage = window.render6PlayerRadialLudoStage;
+window.render6PlayerRadialLudoStage = function(stage) {
+    _origRender6PlayerRadialLudoStage.apply(this, arguments);
+    // Rotate SVG board so Player 0's home base sits at bottom-left (210 deg) and swap badge_0 to pos-4 (bottom-left)
+    const badge0 = document.getElementById('badge_0');
+    const badge4 = document.getElementById('badge_4');
+    if (badge0 && badge0.classList.contains('pos-0')) {
+        badge0.classList.remove('pos-0');
+        badge0.classList.add('pos-4');
+        if (badge4) {
+            badge4.classList.remove('pos-4');
+            badge4.classList.add('pos-0');
+        }
+    }
+    const svgEl = stage.querySelector('.radial-svg-wrap svg');
+    if (svgEl && activePlayersList[0]) {
+        const myRadialIdx = activePlayersList[0].radialIndex || 0;
+        const targetDeg = 210 - (myRadialIdx * 60);
+        svgEl.style.transform = `rotate(${targetDeg}deg)`;
+    }
+};
+
+// ---------------------------------------------------------------------
+// PART 2: CALM AMBIENT LOBBY MUSIC (PLAYS IN MENUS, STOPS IN GAMEPLAY)
+// ---------------------------------------------------------------------
+let lobbyMusicTimer = null;
+let lobbyNoteStep = 0;
+let lobbyAudioUnlocked = false;
+
+// Gentle pentatonic ambient chord notes (C major / A minor warm pad & chimes)
+const CALM_LOBBY_MELODY = [
+    { root: 261.63,fifth: 392.00, chime: 523.25 }, // C4 + G4 + C5
+    { root: 220.00, fifth: 329.63, chime: 659.25 }, // A3 + E4 + E5
+    { root: 174.61, fifth: 261.63, chime: 587.33 }, // F3 + C4 + D5
+    { root: 196.00, fifth: 293.66, chime: 493.88 }, // G3 + D4 + B4
+    { root: 261.63, fifth: 329.63, chime: 783.99 }, // C4 + E4 + G5
+    { root: 220.00, fifth: 329.63, chime: 523.25 }  // A3 + E4 + C5
+];
+
+function isInLobbyOrSetupScreen() {
+    const arena = document.getElementById('gameArenaScreen');
+    return !arena || window.getComputedStyle(arena).display === 'none';
+}
+
+function playSoftAmbientPadTone(ctx, freq, delay, duration, vol) {
+    try {
+        const osc = ctx.createOscillator();
+        const filter = ctx.createBiquadFilter();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(900, ctx.currentTime + delay);
+
+        const start = ctx.currentTime + delay;
+        const end = start + duration;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.linearRampToValueAtTime(vol, start + duration * 0.35);
+        gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(start);
+        osc.stop(end + 0.05);
+    } catch (_) {}
+}
+
+function triggerLobbyMusicPhrase() {
+    if (!gameSoundEnabled || !isInLobbyOrSetupScreen()) return;
+    const ctx = getGameAudioContext();
+    if (!ctx || ctx.state !== 'running') return;
+
+    const chord = CALM_LOBBY_MELODY[lobbyNoteStep % CALM_LOBBY_MELODY.length];
+    lobbyNoteStep++;
+
+    // Soft warm bass pad + gentle fifth harmony + delicate bell chime
+    playSoftAmbientPadTone(ctx, chord.root, 0, 2.8, 0.032);
+    playSoftAmbientPadTone(ctx, chord.fifth, 0.35, 2.4, 0.022);
+    playSoftAmbientPadTone(ctx, chord.chime, 0.9, 1.8, 0.018);
+    playSoftAmbientPadTone(ctx, chord.chime * 0.75, 1.75, 1.5, 0.014);
+}
+
+function startCalmLobbyMusic() {
+    if (lobbyMusicTimer) return;
+    triggerLobbyMusicPhrase();
+    lobbyMusicTimer = setInterval(() => {
+        if (!isInLobbyOrSetupScreen() || !gameSoundEnabled) {
+            stopCalmLobbyMusic();
+            return;
+        }
+        triggerLobbyMusicPhrase();
+    }, 3000);
+}
+
+function stopCalmLobbyMusic() {
+    if (lobbyMusicTimer) {
+        clearInterval(lobbyMusicTimer);
+        lobbyMusicTimer = null;
+    }
+}
+
+// Unlock & start calm lobby tune on first user tap/click anywhere on the home/setup screen
+function handleFirstLobbyInteraction() {
+    if (!lobbyAudioUnlocked) {
+        lobbyAudioUnlocked = true;
+    }
+    if (isInLobbyOrSetupScreen() && gameSoundEnabled) {
+        const ctx = getGameAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().then(() => startCalmLobbyMusic()).catch(() => {});
+        } else {
+            startCalmLobbyMusic();
+        }
+    }
+}
+['pointerdown', 'click', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, handleFirstLobbyInteraction, { passive: true });
+});
+
+// Hook into game launch, quit & sound toggle so lobby music strictly stops during gameplay
+const _origLaunchBeforeMusic = window.launchGameMatch;
+window.launchGameMatch = function() {
+    stopCalmLobbyMusic();
+    _origLaunchBeforeMusic.apply(this, arguments);
+    if (!isInLobbyOrSetupScreen()) {
+        stopCalmLobbyMusic();
+    }
+};
+
+const _origQuitBeforeMusic = window.quitGameMatch;
+window.quitGameMatch = function() {
+    _origQuitBeforeMusic.apply(this, arguments);
+    setTimeout(() => {
+        if (isInLobbyOrSetupScreen() && gameSoundEnabled) {
+            startCalmLobbyMusic();
+        }
+    }, 300);
+};
+
+const _origToggleSoundMusic = window.toggleGameSound;
+window.toggleGameSound = function() {
+    _origToggleSoundMusic.apply(this, arguments);
+    if (!gameSoundEnabled) {
+        stopCalmLobbyMusic();
+    } else if (isInLobbyOrSetupScreen()) {
+        startCalmLobbyMusic();
+    }
+};
+
+// ---------------------------------------------------------------------
+// PART 3: 3D AI EMOJI REACTIONS & FUNNY SOUNDS BESIDE AI AVATAR
+// ---------------------------------------------------------------------
+let lastAiReactionTimestamp = 0;
+
+function playAiReactionSound(mood) {
+    if (!gameSoundEnabled) return;
+    const ctx = getGameAudioContext();
+    if (!ctx) return;
+
+    if (mood === 'afraid') {
+        // Nervous shivering / trembling sound ("Brrrrr!")
+        [520, 480, 535, 470, 545, 460, 530, 450].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.045, 0.05, 0.045, 'triangle', freq * 0.92);
+        });
+    } else if (mood === 'haha') {
+        // Bouncy cheerful AI laugh ("Ha-ha-ha-ha!")
+        [587, 784, 659, 880, 740, 988].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.075, 0.085, 0.055, 'triangle', freq * 1.15);
+        });
+    } else if (mood === 'cry') {
+        // Sad descending wail ("Wahhhh!")
+        [680, 610, 540, 460, 380, 310].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.11, 0.15, 0.052, 'sine', freq * 0.84);
+        });
+    }
+}
+
+function showAiAvatarReaction(aiPlayerIndex, mood, emojiChar) {
+    const player = activePlayersList[aiPlayerIndex];
+    if (!player || !player.isAI) return;
+
+    const badge = document.getElementById(`badge_${aiPlayerIndex}`);
+    if (!badge) return;
+
+    // Remove any existing emoji bubble on this AI badge
+    const oldPop = badge.querySelector('.ai-avatar-emoji-pop');
+    if (oldPop) oldPop.remove();
+
+    const pop = document.createElement('div');
+    pop.className = `ai-avatar-emoji-pop mood-${mood}`;
+    pop.textContent = emojiChar;
+    badge.appendChild(pop);
+
+    playAiReactionSound(mood);
+
+    setTimeout(() => {
+        if (pop.parentNode) pop.remove();
+    }, 2150);
+}
+
+// Check if any AI token is in immediate danger (1 to 6 steps ahead of a human/enemy token)
+function checkAndTriggerAiAfraidReaction(moverPlayerIndex) {
+    if (activeGameType !== 'ludo' || !activePlayersList.length) return;
+    const now = Date.now();
+    if (now - lastAiReactionTimestamp < 1600) return;
+
+    const mover = activePlayersList[moverPlayerIndex];
+    if (!mover) return;
+
+    // Look for an AI player whose token is now 1–5 steps ahead of the mover's token on an unsafe cell
+    for (let aiIdx = 0; aiIdx < activePlayersList.length; aiIdx++) {
+        const aiPlayer = activePlayersList[aiIdx];
+        if (!aiPlayer || !aiPlayer.isAI || aiIdx === moverPlayerIndex) continue;
+
+        let isThreatened = false;
+        for (const aiToken of aiPlayer.tokens) {
+            if (aiToken.progress < 0 || aiToken.progress >= aiPlayer.trackLength) continue;
+            const aiCell = ludoPieceCell(aiPlayer, aiToken);
+            if (!aiCell) continue;
+            const aiCellKey = `${aiCell[0]},${aiCell[1]}`;
+            if (aiPlayer.safeCells.has(aiCellKey)) continue;
+
+            for (const mToken of mover.tokens) {
+                if (mToken.progress < 0 || mToken.progress >= mover.trackLength) continue;
+                for (let step = 1; step <= 6; step++) {
+                    if (mToken.progress + step >= mover.trackLength) continue;
+                    const threatCell = ludoPieceCell(mover, { progress: mToken.progress + step });
+                    if (threatCell && threatCell[0] === aiCell[0] && threatCell[1] === aiCell[1]) {
+                        isThreatened = true;
+                        break;
+                    }
+                }
+                if (isThreatened) break;
+            }
+            if (isThreatened) break;
+        }
+
+        if (isThreatened) {
+            lastAiReactionTimestamp = now;
+            const afraidEmojis = ['😱', '😰', '🥶'];
+            const pick = afraidEmojis[Math.floor(Math.random() * afraidEmojis.length)];
+            setTimeout(() => showAiAvatarReaction(aiIdx, 'afraid', pick), 220);
+            break;
+        }
+    }
+}
+
+// Hook into chooseLudoPiece to detect captures, AI kills, and close-call threats
+const _origChooseLudoPieceForAiEmoji = window.chooseLudoPiece;
+window.chooseLudoPiece = async function(playerIndex, pieceIndex) {
+    const attacker = activePlayersList[playerIndex];
+    const isAttackerAI = Boolean(attacker && attacker.isAI);
+
+    // Snapshot token positions before the move to see whose token gets captured
+    const beforeProgress = activePlayersList.map(p => p.tokens.map(t => t.progress));
+
+    await _origChooseLudoPieceForAiEmoji.apply(this, arguments);
+
+    if (activeGameType !== 'ludo' || !activePlayersList.length) return;
+
+    // Check if any token was captured (progress reset to -1)
+    let capturedVictimIndex = -1;
+    for (let pIdx = 0; pIdx < activePlayersList.length; pIdx++) {
+        if (pIdx === playerIndex) continue;
+        for (let tIdx = 0; tIdx < 4; tIdx++) {
+            if (beforeProgress[pIdx] && beforeProgress[pIdx][tIdx] >= 0 && activePlayersList[pIdx].tokens[tIdx].progress === -1) {
+                capturedVictimIndex = pIdx;
+                break;
+            }
+        }
+        if (capturedVictimIndex !== -1) break;
+    }
+
+    if (capturedVictimIndex !== -1) {
+        lastAiReactionTimestamp = Date.now();
+        const victim = activePlayersList[capturedVictimIndex];
+
+        // Case A: Human (or another player) cut an AI's token -> AI cries!
+        if (victim && victim.isAI) {
+            const cryEmojis = ['😭', '😢', '💔'];
+            showAiAvatarReaction(capturedVictimIndex, 'cry', cryEmojis[Math.floor(Math.random() * cryEmojis.length)]);
+        }
+
+        // Case B: AI cut your token -> AI laughs happily!
+        if (isAttackerAI) {
+            const hahaEmojis = ['😂', '🤣', '😈'];
+            setTimeout(() => {
+                showAiAvatarReaction(playerIndex, 'haha', hahaEmojis[Math.floor(Math.random() * hahaEmojis.length)]);
+            }, victim && victim.isAI ? 450 : 120);
+        }
+        return;
+    }
+
+    // Case C: No capture occurred, check if human moved right behind an AI token -> AI shivers in fear!
+    if (!isAttackerAI) {
+        checkAndTriggerAiAfraidReaction(playerIndex);
+    }
+};
+
+/* =====================================================================
+   1. REMOVE DUPLICATE FOOTER ("©Developed by Fahim Hridoy")
+   2. +500 AI WIN COINS + 3D FLYING GOLD COINS TO TOP BAR WITH SOUND
+   3. CUSTOM MATCH POINTS SYSTEM (6=5pt, 6+6+5=5pt, Kill=10pt, Home=10pt)
+      & SHOW POINTS FOR BOTH WINNER AND ALL PLAYERS
+   ===================================================================== */
+
+// 1. Automatically remove any duplicate footers or duplicate dev signatures
+function removeDuplicateDevFooters() {
+    const footers = document.querySelectorAll('footer.home-footer, #devFooter');
+    const footerElements = document.querySelectorAll('footer.home-footer');
+    if (footerElements.length > 1) {
+        for (let i = 1; i < footerElements.length; i++) {
+            footerElements[i].remove();
+        }
+    }
+    const devSpans = document.querySelectorAll('.dev-signature');
+    if (devSpans.length > 1) {
+        for (let i = 1; i < devSpans.length; i++) {
+            const parentFooter = devSpans[i].closest('footer');
+            if (parentFooter && parentFooter !== footerElements[0]) parentFooter.remove();
+            else devSpans[i].remove();
+        }
+    }
+}
+removeDuplicateDevFooters();
+window.addEventListener('DOMContentLoaded', removeDuplicateDevFooters);
+setTimeout(removeDuplicateDevFooters, 200);
+
+// 2. Realistic Metallic 3D Coin Clink Sound Generator
+function playRealistic3DCoinSound(delaySec = 0, pitchShift = 1) {
+    if (typeof gameSoundEnabled !== 'undefined' && !gameSoundEnabled) return;
+    const ctx = typeof getGameAudioContext === 'function' ? getGameAudioContext() : null;
+    if (!ctx) return;
+    try {
+        // High metallic bell ring + bright harmonic overtone
+        playGameTone(ctx, 1760 * pitchShift, delaySec, 0.14, 0.045, 'sine', 2640 * pitchShift);
+        playGameTone(ctx, 3520 * pitchShift, delaySec + 0.015, 0.18, 0.035, 'triangle', 4180 * pitchShift);
+    } catch (_) {}
+}
+
+// 3. 3D Flying Golden Coins Animation from Center Winner Popup to Top Coin Bar
+function trigger3DFlyingCoinsToTopBar(rewardAmount = 500) {
+    // Ensure top bar coin pill exists even inside fullscreen arena
+    if (typeof injectTopBarCoinIndicator === 'function') injectTopBarCoinIndicator();
+
+    const coinPill = document.getElementById('topBarCoinIndicator');
+    const targetRect = coinPill
+        ? coinPill.getBoundingClientRect()
+        : { left: window.innerWidth - 140, top: 22, width: 90, height: 32 };
+
+    const targetX = (targetRect.left + targetRect.width / 2) || (window.innerWidth - 95);
+    const targetY = (targetRect.top + targetRect.height / 2) || 28;
+
+    const startX = window.innerWidth / 2;
+    const startY = window.innerHeight / 2;
+
+    const totalCoins = 18;
+    for (let i = 0; i < totalCoins; i++) {
+        const coin = document.createElement('div');
+        coin.className = 'flying-3d-gold-coin';
+        document.body.appendChild(coin);
+
+        // Random burst spread around the center winner popup first
+        const burstAngle = (Math.PI * 2 * i) / totalCoins + (Math.random() - 0.5) * 0.35;
+        const burstRadius = 35 + Math.random() * 65;
+        const midX = startX + Math.cos(burstAngle) * burstRadius;
+        const midY = startY + Math.sin(burstAngle) * burstRadius;
+
+        const delayMs = i * 55;
+        const flightDurationMs = 780 + Math.random() * 180;
+
+        coin.style.left = `${startX - 17}px`;
+        coin.style.top = `${startY - 17}px`;
+        coin.style.opacity = '0';
+
+        // Play initial burst clink sound
+        if (i % 2 === 0) {
+            playRealistic3DCoinSound(delayMs / 1000, 0.95 + (i * 0.025));
+        }
+
+        const anim = coin.animate([
+            {
+                transform: 'translate3d(0px, 0px, 0px) scale(0.3) rotateY(0deg) rotateZ(0deg)',
+                opacity: 0,
+                offset: 0
+            },
+            {
+                transform: `translate3d(${midX - startX}px, ${midY - startY}px, 60px) scale(1.25) rotateY(180deg) rotateZ(45deg)`,
+                opacity: 1,
+                offset: 0.28
+            },
+            {
+                transform: `translate3d(${targetX - startX}px, ${targetY - startY}px, 0px) scale(0.55) rotateY(720deg) rotateZ(180deg)`,
+                opacity: 0.95,
+                offset: 1
+            }
+        ], {
+            duration: flightDurationMs,
+            delay: delayMs,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'forwards'
+        });
+
+        anim.onfinish = () => {
+            coin.remove();
+            // Play arrival clink sound & pulse top coin bar
+            playRealistic3DCoinSound(0, 1.25 + (i * 0.02));
+            if (coinPill) {
+                coinPill.classList.remove('coin-pill-receiving');
+                void coinPill.offsetWidth;
+                coinPill.classList.add('coin-pill-receiving');
+            }
+        };
+    }
+}
+
+// 4. Override AI Match Win Coin Reward to +500 Coins (instead of 1000) + Trigger 3D Flying Coins
+let lastMatchCoinRewardedMe = false;
+
+window.recordCompletedMatch = function(gameType, playersList, winnerIndex) {
+    lastMatchCoinRewardedMe = false;
+    if (typeof _origRecordCompletedMatch2 === 'function') {
+        // Call base achievement recorder (from app.js) without triggering the old 1000 coin reward
+        try {
+            // Temporarily block modifyActivePlayerCoins(1000) inside old wrapper if chained
+            window._blockOld1000Coins = true;
+            _origRecordCompletedMatch2.apply(this, arguments);
+            window._blockOld1000Coins = false;
+        } catch (_) {
+            window._blockOld1000Coins = false;
+        }
+    }
+
+    const winner = Array.isArray(playersList) ? playersList[winnerIndex] : null;
+    const isMeWinner = Boolean(winner && (winner.playerId === getCurrentProfileId() || (!winner.isAI && winnerIndex === 0)));
+
+    if (isMeWinner && selectedSubMode === 'ai' && isUserLoggedIn()) {
+        lastMatchCoinRewardedMe = true;
+        modifyActivePlayerCoins(500);
+        showGameToast('🎉 Victory against AI! +500 Golden Coins added! 🪙');
+        setTimeout(() => {
+            trigger3DFlyingCoinsToTopBar(500);
+        }, 260);
+    }
+};
+
+// Block any legacy 1000-coin call so only +500 is added on AI victory
+const _baseModifyCoins500Fix = window.modifyActivePlayerCoins;
+window.modifyActivePlayerCoins = function(amount) {
+    if (window._blockOld1000Coins && amount === 1000) return getPlayerDummyCoins();
+    return _baseModifyCoins500Fix.apply(this, arguments);
+};
+
+// 5. CUSTOM MATCH POINT SCORING ENGINE:
+// - Roll a 6           => +5 points
+// - Roll 6 + 6 + 5     => +5 bonus points (max triple-roll combo: two 6s followed by 5)
+// - Capture a token    => +10 points per token captured
+// - Token reaches Home => +10 points per token finished
+function ensurePlayerMatchPointsInitialized() {
+    if (!Array.isArray(activePlayersList)) return;
+    activePlayersList.forEach(p => {
+        if (typeof p.matchRollPoints !== 'number') p.matchRollPoints = 0;
+        if (typeof p.sixStreakTracker !== 'number') p.sixStreakTracker = 0;
+    });
+}
+
+function calculatePlayerTotalMatchPoints(player) {
+    if (!player) return 0;
+    const rollPts = Number(player.matchRollPoints) || 0;
+    const capturePts = (Number(player.kills) || 0) * 10;
+    const homeCount = Array.isArray(player.tokens)
+        ? player.tokens.filter(t => Number(t.progress) === Number(player.finishProgress)).length
+        : 0;
+    const homePts = homeCount * 10;
+    return rollPts + capturePts + homePts;
+}
+
+// Hook into processLudoRoll to award +5 pts for rolling 6, and +5 bonus pts for rolling 6 -> 6 -> 5
+const _origProcessLudoRollPoints = window.processLudoRoll;
+window.processLudoRoll = function(playerIndex, rolledNum) {
+    ensurePlayerMatchPointsInitialized();
+    const player = activePlayersList[playerIndex];
+    const rollVal = Math.round(Number(rolledNum));
+
+    if (player) {
+        if (rollVal === 6) {
+            player.matchRollPoints += 5;
+            player.sixStreakTracker = (player.sixStreakTracker || 0) + 1;
+        } else {
+            if (player.sixStreakTracker === 2 && rollVal === 5) {
+                // Rolled two 6s in a row and then a 5 (highest 3-roll combo)!
+                player.matchRollPoints += 5;
+                if (typeof showGameToast === 'function') {
+                    showGameToast(`🔥 High Roll Combo (6 + 6 + 5)! ${player.name} earned +5 Bonus Points!`);
+                }
+            }
+            player.sixStreakTracker = 0;
+        }
+    }
+
+    return _origProcessLudoRollPoints.apply(this, arguments);
+};
+
+// Reset matchRollPoints when a new match starts
+const _origLaunchForPointsReset = window.launchGameMatch;
+window.launchGameMatch = function() {
+    lastMatchCoinRewardedMe = false;
+    _origLaunchForPointsReset.apply(this, arguments);
+    if (Array.isArray(activePlayersList)) {
+        activePlayersList.forEach(p => {
+            p.matchRollPoints = 0;
+            p.sixStreakTracker = 0;
+        });
+    }
+};
+
+// 6. OVERRIDE LEADERBOARD & WINNER POPUP TO SHOW POINTS FOR WINNER AND ALL PLAYERS
+window.getLudoLeaderboardMarkup = function() {
+    ensurePlayerMatchPointsInitialized();
+    const ranked = activePlayersList.map((player, index) => ({
+        player,
+        index,
+        score: calculatePlayerTotalMatchPoints(player)
+    })).sort((a, b) => (a.index === ludoMatchWinner ? -1 : b.index === ludoMatchWinner ? 1 : b.score - a.score));
+
+    return `
+        <div class="ludo-leaderboard">
+            <span class="ludo-leaderboard-title">${ludoMatchIsOffline ? 'MATCH STANDINGS & POINTS (6=5pt · Kill=10pt · Home=10pt)' : 'ONLINE LEADERBOARD'}</span>
+            ${ranked.map((row, rank) => {
+                const color = LUDO_RADIAL_COLOR_HEX[row.player.color] || '#fff';
+                const name = escapeLudoResultText(row.player.name || `Player ${row.index + 1}`);
+                const isWinnerRow = (ludoMatchWinner === row.index);
+                // Always show exact points for BOTH the winner and every other player!
+                const scoreLabel = isWinnerRow ? `🏆 WINNER · ${row.score} pts` : `${row.score} pts`;
+                return `
+                    <div class="ludo-leaderboard-row ${rank === 0 ? 'first' : ''}">
+                        <span class="ludo-leaderboard-rank">${rank + 1}${rank === 0 ? 'st' : rank === 1 ? 'nd' : rank === 2 ? 'rd' : 'th'}</span>
+                        <i class="ludo-leaderboard-color" style="--rank-color:${color}"></i>
+                        <span class="ludo-leaderboard-name">${name}</span>
+                        <span class="ludo-leaderboard-score" style="font-weight:900; color:${isWinnerRow ? '#fde047' : '#e2e8f0'};">${scoreLabel}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+};
+
+const _origGetLudoResultMarkup = window.getLudoResultMarkup;
+window.getLudoResultMarkup = function() {
+    let html = _origGetLudoResultMarkup.apply(this, arguments);
+    const winner = activePlayersList[ludoMatchWinner];
+    const isMeWinner = Boolean(winner && (winner.playerId === getCurrentProfileId() || (!winner.isAI && ludoMatchWinner === 0)));
+
+    // If human won against Smart AI, display the 3D +500 Coins reward pill right inside the Winner Popup!
+    if (isMeWinner && selectedSubMode === 'ai' && isUserLoggedIn()) {
+        const coinBadgeHtml = `<div class="winner-coin-reward-pill">🪙 +500 AI VICTORY COINS ADDED!</div>`;
+        html = html.replace('<div class="ludo-result-time">', `${coinBadgeHtml}<div class="ludo-result-time">`);
+    }
+    return html;
+};
+/* =====================================================================
+   MULTI-AI FUNNY EMOJI STICKER REACTIONS & AUDIO ENGINE
+   ==================================================================== */
+
+let lastMultiAiReactionTime = 0;
+
+function playAiReactionSoundEffect(mood) {
+    if (typeof gameSoundEnabled !== 'undefined' && !gameSoundEnabled) return;
+    const ctx = typeof getGameAudioContext === 'function' ? getGameAudioContext() : null;
+    if (!ctx) return;
+    try {
+        if (mood === 'afraid') {
+            [520, 480, 535, 470, 545, 460, 530, 450].forEach((freq, idx) => {
+                playGameTone(ctx, freq, idx * 0.045, 0.05, 0.045, 'triangle', freq * 0.92);
+            });
+        } else if (mood === 'haha') {
+            [587, 784, 659, 880, 740, 988].forEach((freq, idx) => {
+                playGameTone(ctx, freq, idx * 0.075, 0.085, 0.055, 'triangle', freq * 1.15);
+            });
+        } else if (mood === 'cry') {
+            [680, 610, 540, 460, 380, 310].forEach((freq, idx) => {
+                playGameTone(ctx, freq, idx * 0.11, 0.15, 0.052, 'sine', freq * 0.84);
+            });
+        } else if (mood === 'angry') {
+            [220, 190, 240, 175, 210].forEach((freq, idx) => {
+                playGameTone(ctx, freq, idx * 0.06, 0.12, 0.065, 'sawtooth', freq * 0.7);
+            });
+        }
+    } catch (_) {}
+}
+
+function showAiBadgeEmojiReaction(aiPlayerIndex, mood, emojiChar) {
+    const player = activePlayersList[aiPlayerIndex];
+    if (!player || !player.isAI) return;
+
+    const badge = document.getElementById(`badge_${aiPlayerIndex}`);
+    if (!badge) return;
+
+    const oldPop = badge.querySelector('.ai-avatar-emoji-pop');
+    if (oldPop) oldPop.remove();
+
+    const pop = document.createElement('div');
+    pop.className = `ai-avatar-emoji-pop mood-${mood}`;
+    pop.textContent = emojiChar;
+    badge.appendChild(pop);
+
+    playAiReactionSoundEffect(mood);
+
+    setTimeout(() => {
+        if (pop.parentNode) pop.remove();
+    }, 2150);
+}
+
+// Evaluate AI fear state: when any AI's token is within 1-6 steps of ANY other player's token on track
+function evaluateAllAiThreatReactions(activeMoverIndex) {
+    if (!Array.isArray(activePlayersList) || activePlayersList.length < 2) return;
+    const now = Date.now();
+    if (now - lastMultiAiReactionTime < 1800) return;
+
+    for (let aiIdx = 0; aiIdx < activePlayersList.length; aiIdx++) {
+        const aiPlayer = activePlayersList[aiIdx];
+        if (!aiPlayer || !aiPlayer.isAI) continue;
+
+        let isThreatened = false;
+        for (const aiToken of aiPlayer.tokens) {
+            if (aiToken.progress < 0 || aiToken.progress >= aiPlayer.trackLength) continue;
+            const aiCell = ludoPieceCell(aiPlayer, aiToken);
+            if (!aiCell) continue;
+            const aiCellKey = `${aiCell[0]},${aiCell[1]}`;
+            if (aiPlayer.safeCells.has(aiCellKey)) continue;
+
+            // Check if any opponent/player is 1 to 6 steps behind this AI token
+            for (let oppIdx = 0; oppIdx < activePlayersList.length; oppIdx++) {
+                if (oppIdx === aiIdx) continue;
+                const opp = activePlayersList[oppIdx];
+                for (const oppToken of opp.tokens) {
+                    if (oppToken.progress < 0 || oppToken.progress >= opp.trackLength) continue;
+                    for (let step = 1; step <= 6; step++) {
+                        const checkProg = oppToken.progress + step;
+                        if (checkProg >= opp.trackLength) continue;
+                        const threatCell = ludoPieceCell(opp, { progress: checkProg });
+                        if (threatCell && threatCell[0] === aiCell[0] && threatCell[1] === aiCell[1]) {
+                            isThreatened = true;
+                            break;
+                        }
+                    }
+                    if (isThreatened) break;
+                }
+                if (isThreatened) break;
+            }
+            if (isThreatened) break;
+        }
+
+        if (isThreatened) {
+            lastMultiAiReactionTime = now;
+            const afraidList = ['😱', '😰', '🥶', '😬'];
+            const chosenEmoji = afraidList[Math.floor(Math.random() * afraidList.length)];
+            setTimeout(() => showAiBadgeEmojiReaction(aiIdx, 'afraid', chosenEmoji), 250);
+            break;
+        }
+    }
+}
+
+// Hook into chooseLudoPiece to trigger accurate AI reactions on kills, captures, and close calls
+const _origChooseLudoPieceForMultiAi = window.chooseLudoPiece;
+window.chooseLudoPiece = async function(playerIndex, pieceIndex) {
+    const actor = activePlayersList[playerIndex];
+    const isActorAI = Boolean(actor && actor.isAI);
+
+    const beforeProgress = activePlayersList.map(p => p.tokens.map(t => t.progress));
+
+    await _origChooseLudoPieceForMultiAi.apply(this, arguments);
+
+    if (activeGameType !== 'ludo' || !Array.isArray(activePlayersList)) return;
+
+    // Detect who got captured
+    let victimPlayerIndex = -1;
+    for (let pIdx = 0; pIdx < activePlayersList.length; pIdx++) {
+        if (pIdx === playerIndex) continue;
+        for (let tIdx = 0; tIdx < 4; tIdx++) {
+            if (beforeProgress[pIdx] && beforeProgress[pIdx][tIdx] >= 0 && activePlayersList[pIdx].tokens[tIdx].progress === -1) {
+                victimPlayerIndex = pIdx;
+                break;
+            }
+        }
+        if (victimPlayerIndex !== -1) break;
+    }
+
+    if (victimPlayerIndex !== -1) {
+        lastMultiAiReactionTime = Date.now();
+        const victim = activePlayersList[victimPlayerIndex];
+
+        // 1. If an AI's token was captured (by you or another AI), that AI cries!
+        if (victim && victim.isAI) {
+            const cryEmojis = ['😭', '😢', '💔', '🥺'];
+            const pickCry = cryEmojis[Math.floor(Math.random() * cryEmojis.length)];
+            setTimeout(() => showAiBadgeEmojiReaction(victimPlayerIndex, 'cry', pickCry), 180);
+        }
+
+        // 2. If an AI successfully captured someone's token, that AI laughs (Haha)!
+        if (isActorAI) {
+            const hahaEmojis = ['😂', '🤣', '😈', '😜'];
+            const pickHaha = hahaEmojis[Math.floor(Math.random() * hahaEmojis.length)];
+            setTimeout(() => showAiBadgeEmojiReaction(playerIndex, 'haha', pickHaha), victim && victim.isAI ? 500 : 120);
+        }
+        return;
+    }
+
+    // 3. If no capture happened, check if any AI is feeling threatened right now
+    if (!isActorAI) {
+        evaluateAllAiThreatReactions(playerIndex);
+    }
+};
+/* =====================================================================
+   RAGE ENGINE: TRIGGER ANGRY REACTIONS WHEN 6 IS ROLLED FREQUENTLY
+   ==================================================================== */
+
+function playAiAngryRageSoundEffect() {
+    if (typeof gameSoundEnabled !== 'undefined' && !gameSoundEnabled) return;
+    const ctx = typeof getGameAudioContext === 'function' ? getGameAudioContext() : null;
+    if (!ctx) return;
+    try {
+        // Deep angry rumble & sharp high pitch frustration tone
+        [150, 130, 180, 120, 160].forEach((freq, idx) => {
+            playGameTone(ctx, freq, idx * 0.05, 0.14, 0.075, 'sawtooth', freq * 0.65);
+        });
+    } catch (_) {}
+}
+
+function showAiRageBadgeReaction(aiPlayerIndex, emojiChar = '😡') {
+    const player = activePlayersList[aiPlayerIndex];
+    if (!player || !player.isAI) return;
+
+    const badge = document.getElementById(`badge_${aiPlayerIndex}`);
+    if (!badge) return;
+
+    const oldPop = badge.querySelector('.ai-avatar-emoji-pop');
+    if (oldPop) oldPop.remove();
+
+    const pop = document.createElement('div');
+    pop.className = 'ai-avatar-emoji-pop mood-rage';
+    pop.textContent = emojiChar;
+    badge.appendChild(pop);
+
+    if (typeof playAiReactionSoundEffect === 'function') {
+        playAiReactionSoundEffect('angry');
+    }
+
+    setTimeout(() => {
+        if (pop.parentNode) pop.remove();
+    }, 2200);
+}
+
+// Hook into processLudoRoll to detect when an AI (or player) rolls 6 and make other AIs furious!
+const _origProcessLudoRollForRage = window.processLudoRoll;
+window.processLudoRoll = function(playerIndex, rolledNum) {
+    const rollVal = Math.round(Number(rolledNum));
+    const roller = activePlayersList[playerIndex];
+
+    // If someone rolls a 6, trigger angry reactions from other AI players on the board
+    if (rollVal === 6 && Array.isArray(activePlayersList)) {
+        const now = Date.now();
+        // Pick a random AI to show rage about the 6
+        const aiCandidates = activePlayersList
+            .map((p, idx) => ({ p, idx }))
+            .filter(item => item.p.isAI && item.idx !== playerIndex);
+
+        if (aiCandidates.length > 0) {
+            const chosen = aiCandidates[Math.floor(Math.random() * aiCandidates.length)];
+            const rageEmojis = ['😡', '🤬', '🔥', '👿'];
+            const pickRage = rageEmojis[Math.floor(Math.random() * rageEmojis.length)];
+            setTimeout(() => {
+                showAiRageBadgeReaction(chosen.idx, pickRage);
+            }, 300);
+        }
+    }
+
+    return _origProcessLudoRollForRage.apply(this, arguments);
+};
+
